@@ -24,7 +24,52 @@ namespace Neanderthal
         }
 
         public static GameObject Box(Transform parent, Vector3 pos, Vector3 scale, Material mat, Quaternion? rot = null, bool collider = true)
-            => Prim(PrimitiveType.Cube, parent, pos, scale, mat, rot, collider);
+        {
+            var go = Prim(PrimitiveType.Cube, parent, pos, scale, mat, rot, collider);
+            // Photo-textured boxes get UVs in metres so a 17 m wall tiles instead of stretching one image.
+            if (mat != null && mat.mainTexture != null && scale.sqrMagnitude > 1.5f)
+                go.GetComponent<MeshFilter>().sharedMesh = MetricBox(scale, 2.5f);
+            return go;
+        }
+
+        static readonly Dictionary<Vector3Int, Mesh> metricBoxes = new Dictionary<Vector3Int, Mesh>();
+
+        /// <summary>Unit cube whose UVs repeat every <paramref name="tile"/> metres once scaled by <paramref name="size"/>.</summary>
+        public static Mesh MetricBox(Vector3 size, float tile)
+        {
+            var key = new Vector3Int(Mathf.RoundToInt(size.x * 10f), Mathf.RoundToInt(size.y * 10f), Mathf.RoundToInt(size.z * 10f));
+            if (metricBoxes.TryGetValue(key, out var cached) && cached != null) return cached;
+            var verts = new List<Vector3>();
+            var uvs = new List<Vector2>();
+            var normals = new List<Vector3>();
+            var tris = new List<int>();
+            void Face(Vector3 n, Vector3 u, Vector3 v, float su, float sv)
+            {
+                int s = verts.Count;
+                Vector3 c = n * 0.5f;
+                verts.Add(c - u * 0.5f - v * 0.5f); verts.Add(c + u * 0.5f - v * 0.5f);
+                verts.Add(c + u * 0.5f + v * 0.5f); verts.Add(c - u * 0.5f + v * 0.5f);
+                uvs.Add(new Vector2(0, 0)); uvs.Add(new Vector2(su, 0)); uvs.Add(new Vector2(su, sv)); uvs.Add(new Vector2(0, sv));
+                for (int i = 0; i < 4; i++) normals.Add(n);
+                tris.AddRange(new[] { s, s + 2, s + 1, s, s + 3, s + 2 });
+            }
+            float X = size.x / tile, Y = size.y / tile, Z = size.z / tile;
+            Face(Vector3.forward, Vector3.left, Vector3.up, X, Y);
+            Face(Vector3.back, Vector3.right, Vector3.up, X, Y);
+            Face(Vector3.right, Vector3.forward, Vector3.up, Z, Y);
+            Face(Vector3.left, Vector3.back, Vector3.up, Z, Y);
+            Face(Vector3.up, Vector3.right, Vector3.forward, X, Z);
+            Face(Vector3.down, Vector3.right, Vector3.back, X, Z);
+            var mesh = new Mesh { name = "MetricBox" };
+            mesh.SetVertices(verts);
+            mesh.SetNormals(normals);
+            mesh.SetUVs(0, uvs);
+            mesh.SetTriangles(tris, 0);
+            mesh.RecalculateTangents();
+            mesh.RecalculateBounds();
+            metricBoxes[key] = mesh;
+            return mesh;
+        }
 
         public static GameObject Ball(Transform parent, Vector3 pos, Vector3 scale, Material mat, bool collider = true)
             => Prim(PrimitiveType.Sphere, parent, pos, scale, mat, null, collider);

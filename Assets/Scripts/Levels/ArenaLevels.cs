@@ -54,7 +54,19 @@ namespace Neanderthal
             Scenery.Lighting(root, new Color(1f, 0.9f, 0.75f), 1.1f, new Vector3(32f, -60f, 0f),
                 new Color(0.5f, 0.58f, 0.66f), new Color(0.38f, 0.4f, 0.35f), new Color(0.18f, 0.16f, 0.12f),
                 new Color(0.55f, 0.6f, 0.58f), 0.012f, new Color(0.95f, 1f, 0.94f));
-            TerrainBuilder.Build(root, 130f, 130, ForestHeight, (x, z, h, s) =>
+            var forestLayers = new[] { TextureLibrary.Layer("grass", 5f), TextureLibrary.Layer("forest_ground", 6f), TextureLibrary.Layer("river_sand", 4f), TextureLibrary.Layer("rock_face", 8f) };
+            if (TerrainBuilder.BuildTextured(root, 130f, 513, ForestHeight, forestLayers, (x, z, h, sl, w) =>
+            {
+                w[0] = 1f;
+                w[1] = Mathf.Clamp01((Mat.Fbm(x * 0.05f + 3f, z * 0.05f, 3) - 0.45f) * 3f);
+                float path = Smooth(3f, 1f, Mathf.Abs(new Vector2(x, z).magnitude - 30f));
+                float stream = Smooth(6.5f, 3.5f, Mathf.Abs(z - StreamZ(x)));
+                float pond = Smooth(11f, 7f, Vector2.Distance(new Vector2(x, z), new Vector2(26f, -14f)));
+                float tunnel = Smooth(6f, 4f, Mathf.Abs(z - 14f)) * Smooth(27f, 22f, Mathf.Abs(x));
+                w[2] = Mathf.Max(Mathf.Max(path * 1.4f, stream * 2.5f), Mathf.Max(pond * 2.5f, tunnel * 2f));
+                w[3] = Mathf.Clamp01((sl - 0.4f) * 4f) * 3f;
+            }) == null)
+                TerrainBuilder.Build(root, 130f, 130, ForestHeight, (x, z, h, s) =>
             {
                 float path = Smooth(3f, 1f, Mathf.Abs(new Vector2(x, z).magnitude - 30f));
                 float sand = Smooth(6f, 3.5f, Mathf.Abs(z - StreamZ(x)));
@@ -73,7 +85,7 @@ namespace Neanderthal
             }, new[] { new Color(0.22f, 0.32f, 0.11f), new Color(0.3f, 0.37f, 0.13f), new Color(0.17f, 0.26f, 0.09f) }, 11);
 
             // Cave tunnel through the hill: walls + roof, rock on top.
-            var rock = Scenery.RockMat;
+            var rock = Scenery.CaveMat;
             float tz = 14f;
             for (int s = -1; s <= 1; s += 2)
                 Scenery.Block(root, new Vector3(0f, 2f, tz + s * 5f), new Vector3(30f, 7f, 2f), rock);
@@ -89,7 +101,7 @@ namespace Neanderthal
             foreach (float bx in new[] { -22f, 18f })
             {
                 float sz = StreamZ(bx);
-                var deck = Shapes.Box(root, new Vector3(bx, 0.35f, sz), new Vector3(3.2f, 0.3f, 11f), Mat.Get(Mat.WoodDark));
+                var deck = Shapes.Box(root, new Vector3(bx, 0.35f, sz), new Vector3(3.2f, 0.3f, 11f), Scenery.WoodMat);
                 deck.name = "Bridge";
                 for (int i = -1; i <= 1; i += 2)
                     Shapes.Box(root, new Vector3(bx + i * 1.5f, 1f, sz), new Vector3(0.12f, 0.12f, 11f), Mat.Get(Mat.Wood));
@@ -97,7 +109,7 @@ namespace Neanderthal
 
             // Ramps onto a rock shelf in the west.
             Scenery.Block(root, new Vector3(-32f, 1.5f, 22f), new Vector3(10f, 5f, 8f), rock);
-            Scenery.Ramp(root, new Vector3(-32f, ForestHeight(-32f, 10f), 10f), Vector3.forward, 8f, 4f - ForestHeight(-32f, 10f), 3f, Mat.Get(Mat.WoodDark));
+            Scenery.Ramp(root, new Vector3(-32f, ForestHeight(-32f, 10f), 10f), Vector3.forward, 8f, 4f - ForestHeight(-32f, 10f), 3f, Scenery.WoodMat);
             Scenery.Waterfall(root, new Vector3(-34f, 4.2f, 18f), 5.5f, 3f, Vector3.right);
 
             // Trees and cover
@@ -160,7 +172,14 @@ namespace Neanderthal
             Scenery.Lighting(root, new Color(1f, 0.88f, 0.72f), 1.35f, new Vector3(42f, 140f, 0f),
                 new Color(0.55f, 0.65f, 0.8f), new Color(0.6f, 0.45f, 0.35f), new Color(0.35f, 0.22f, 0.15f),
                 new Color(0.8f, 0.68f, 0.58f), 0.006f, new Color(1f, 0.92f, 0.84f));
-            TerrainBuilder.Build(root, 140f, 120, CanyonHeight, (x, z, h, s) =>
+            var canyonLayers = new[] { TextureLibrary.Layer("red_sand", 6f), TextureLibrary.Layer("red_soil", 5f), TextureLibrary.Layer("red_rock", 9f) };
+            if (TerrainBuilder.BuildTextured(root, 140f, 513, CanyonHeight, canyonLayers, (x, z, h, sl, w) =>
+            {
+                w[0] = 1f;
+                w[1] = Mathf.Clamp01((Mat.Fbm(x * 0.06f, z * 0.06f + 5f, 3) - 0.42f) * 3f);
+                w[2] = Mathf.Clamp01((sl - 0.3f) * 3f + h / 12f) * 3f;
+            }) == null)
+                TerrainBuilder.Build(root, 140f, 120, CanyonHeight, (x, z, h, s) =>
             {
                 float n = Mat.Fbm(x * 0.08f, z * 0.08f, 3);
                 Color sand = Color.Lerp(new Color(0.62f, 0.47f, 0.33f), new Color(0.52f, 0.38f, 0.26f), n);
@@ -236,7 +255,7 @@ namespace Neanderthal
             // Crates outside
             foreach (var cp in new[] { new Vector3(-28f, 0, 6f), new Vector3(28f, 0, -6f), new Vector3(8f, 0, 30f), new Vector3(-8f, 0, -30f) })
             {
-                Shapes.Box(root, cp + Vector3.up * 0.6f, new Vector3(1.2f, 1.2f, 1.2f), Mat.Get(Mat.WoodDark), Quaternion.Euler(0, 15, 0));
+                Shapes.Box(root, cp + Vector3.up * 0.6f, new Vector3(1.2f, 1.2f, 1.2f), Scenery.WoodMat, Quaternion.Euler(0, 15, 0));
                 Shapes.Box(root, cp + new Vector3(1.3f, 0.5f, 0.3f), new Vector3(1f, 1f, 1f), Mat.Get(Mat.Wood), Quaternion.Euler(0, -10, 0));
             }
 

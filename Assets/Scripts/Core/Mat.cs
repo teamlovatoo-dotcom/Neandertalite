@@ -113,6 +113,28 @@ namespace Neanderthal
             return m;
         }
 
+        /// <summary>Photo-textured material (albedo + normal map) from TextureLibrary; falls back to a flat colour.</summary>
+        public static Material Pbr(string texture, Color fallback, float smoothness = 0.1f, Vector2? tiling = null, Color? tint = null)
+        {
+            string key = $"pbr_{texture}_{(tiling ?? Vector2.one)}_{ColorUtility.ToHtmlStringRGB(tint ?? Color.white)}";
+            if (cache.TryGetValue(key, out var m) && m != null) return m;
+            var albedo = TextureLibrary.Albedo(texture);
+            if (albedo == null) return Get(fallback, smoothness);
+            m = new Material(Lit) { name = key, color = tint ?? Color.white, mainTexture = albedo, enableInstancing = true };
+            if (tiling.HasValue) m.mainTextureScale = tiling.Value;
+            var normal = TextureLibrary.Normal(texture);
+            if (normal != null && m.HasProperty("_BumpMap"))
+            {
+                m.SetTexture("_BumpMap", normal);
+                if (tiling.HasValue) m.SetTextureScale("_BumpMap", tiling.Value);
+                m.EnableKeyword("_NORMALMAP");
+            }
+            SetFloat(m, "_Glossiness", smoothness);
+            SetFloat(m, "_Smoothness", smoothness);
+            cache[key] = m;
+            return m;
+        }
+
         static void SetFloat(Material m, string prop, float v)
         {
             if (m.HasProperty(prop)) m.SetFloat(prop, v);

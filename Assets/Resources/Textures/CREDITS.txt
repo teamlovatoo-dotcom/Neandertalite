@@ -1,0 +1,15 @@
+Photo textures from Poly Haven (https://polyhaven.com), licensed CC0 (public domain).
+1K JPG albedo (_diff) and OpenGL normal maps (_nor_gl).
+
+grass          <- leafy_grass
+forest_ground  <- forrest_ground_01
+rock_face      <- rock_face_03
+river_sand     <- coast_sand_01
+red_sand       <- red_sand
+red_soil       <- red_laterite_soil_stones
+red_rock       <- tiger_rock
+boulder        <- rock_boulder_dry
+bark           <- pine_bark
+planks         <- weathered_brown_planks
+stone_wall     <- stone_wall
+fortress_wall  <- castle_wall_slates

@@ -7,7 +7,7 @@ namespace Neanderthal
     public static class Scenery
     {
         static Mesh[] rockMeshes;
-        static Material rockMat, rockRedMat, barkMat, concreteMat;
+        static Material rockMat, rockRedMat, barkMat, concreteMat, caveMat, woodMat;
 
         public static void Lighting(Transform parent, Color sun, float sunIntensity, Vector3 sunEuler, Color sky, Color equator, Color ground, Color fog, float fogDensity, Color? grade = null)
         {
@@ -48,15 +48,29 @@ namespace Neanderthal
 
         static void EnsureMats()
         {
-            if (rockMat == null) rockMat = Mat.Textured("rock", Mat.NoiseTexture(128, new Color(0.47f, 0.45f, 0.42f), new Color(0.27f, 0.26f, 0.24f), 6f, 3), 0.1f, new Vector2(2, 2));
-            if (rockRedMat == null) rockRedMat = Mat.Textured("rock_red", Mat.NoiseTexture(128, new Color(0.66f, 0.38f, 0.26f), new Color(0.42f, 0.22f, 0.15f), 5f, 9), 0.08f, new Vector2(2, 2));
-            if (barkMat == null) barkMat = Mat.Textured("bark", Mat.NoiseTexture(64, new Color(0.3f, 0.22f, 0.15f), new Color(0.18f, 0.13f, 0.09f), 10f, 5), 0.05f, new Vector2(1, 3));
-            if (concreteMat == null) concreteMat = Mat.Textured("stonewall", Mat.NoiseTexture(128, new Color(0.56f, 0.53f, 0.49f), new Color(0.4f, 0.38f, 0.35f), 8f, 11), 0.05f, new Vector2(1, 1));
+            if (rockMat == null) rockMat = TextureLibrary.Has("boulder")
+                ? Mat.Pbr("boulder", Mat.Rock, 0.15f, new Vector2(2, 2), new Color(0.78f, 0.76f, 0.72f))
+                : Mat.Textured("rock", Mat.NoiseTexture(128, new Color(0.47f, 0.45f, 0.42f), new Color(0.27f, 0.26f, 0.24f), 6f, 3), 0.1f, new Vector2(2, 2));
+            if (rockRedMat == null) rockRedMat = TextureLibrary.Has("red_rock")
+                ? Mat.Pbr("red_rock", Mat.RockRed, 0.1f, new Vector2(2, 3))
+                : Mat.Textured("rock_red", Mat.NoiseTexture(128, new Color(0.66f, 0.38f, 0.26f), new Color(0.42f, 0.22f, 0.15f), 5f, 9), 0.08f, new Vector2(2, 2));
+            if (barkMat == null) barkMat = TextureLibrary.Has("bark")
+                ? Mat.Pbr("bark", Mat.Bark, 0.05f, new Vector2(1, 3))
+                : Mat.Textured("bark", Mat.NoiseTexture(64, new Color(0.3f, 0.22f, 0.15f), new Color(0.18f, 0.13f, 0.09f), 10f, 5), 0.05f, new Vector2(1, 3));
+            if (concreteMat == null) concreteMat = TextureLibrary.Has("fortress_wall")
+                ? Mat.Pbr("fortress_wall", Mat.Concrete, 0.08f)
+                : Mat.Textured("stonewall", Mat.NoiseTexture(128, new Color(0.56f, 0.53f, 0.49f), new Color(0.4f, 0.38f, 0.35f), 8f, 11), 0.05f, new Vector2(1, 1));
+            if (caveMat == null) caveMat = TextureLibrary.Has("rock_face") ? Mat.Pbr("rock_face", Mat.Rock, 0.12f) : rockMat;
+            if (woodMat == null) woodMat = TextureLibrary.Has("planks") ? Mat.Pbr("planks", Mat.WoodDark, 0.1f) : Mat.Get(Mat.WoodDark);
         }
 
         public static Material RockMat { get { EnsureMats(); return rockMat; } }
         public static Material RockRedMat { get { EnsureMats(); return rockRedMat; } }
         public static Material WallMat { get { EnsureMats(); return concreteMat; } }
+        /// <summary>Rock face for cave walls and blocks (tiles in metres on boxes).</summary>
+        public static Material CaveMat { get { EnsureMats(); return caveMat; } }
+        /// <summary>Weathered planks for bridges, crates and decks.</summary>
+        public static Material WoodMat { get { EnsureMats(); return woodMat; } }
 
         /// <summary>Lumpy boulder meshes made by displacing a sphere with 3D-ish noise.</summary>
         static Mesh RockMesh(int variant)

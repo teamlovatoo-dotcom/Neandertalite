@@ -89,7 +89,19 @@ namespace Neanderthal
                 new Color(0.55f, 0.62f, 0.72f), new Color(0.42f, 0.42f, 0.4f), new Color(0.2f, 0.18f, 0.15f),
                 new Color(0.62f, 0.66f, 0.7f), 0.0045f);
 
-            TerrainBuilder.Build(root, Size, 200, Height, Ground, 1024);
+            var layers = new[] { TextureLibrary.Layer("grass", 6f), TextureLibrary.Layer("forest_ground", 6f), TextureLibrary.Layer("river_sand", 4f), TextureLibrary.Layer("rock_face", 10f) };
+            if (TerrainBuilder.BuildTextured(root, Size, 513, Height, layers, (x, z, h, sl, w) =>
+            {
+                w[0] = 1f;
+                w[1] = Mathf.Clamp01((Mat.Fbm(x * 0.04f + 9f, z * 0.04f, 3) - 0.45f) * 3f);
+                float path = Smooth(3.5f, 1.5f, Mathf.Abs(x - Mathf.Sin(z / 25f) * 6f)) * Smooth(140f, 130f, z);
+                float camp = Smooth(18f, 10f, Vector2.Distance(new Vector2(x, z), new Vector2(-10f, 40f)));
+                float sand = z < 106f ? Smooth(12f, 8f, Mathf.Abs(x - RiverX(z))) : 0f;
+                if (InCaveNotch(x, z)) path = 1f;
+                w[2] = Mathf.Max(Mathf.Max(path * 1.5f, camp * 1.2f), sand * 2.5f);
+                w[3] = Mathf.Clamp01((sl - 0.45f) * 3f) * 3f;
+            }) == null)
+                TerrainBuilder.Build(root, Size, 200, Height, Ground, 1024);
             Scenery.WaterPlane(root, new Vector3(30f, WaterY, -20f), new Vector2(80f, 260f));
             Boundary(root, 138f);
 
@@ -196,7 +208,7 @@ namespace Neanderthal
 
         static void BuildCave(ValleyLevel L, Transform root)
         {
-            var m = Scenery.RockMat;
+            var m = Scenery.CaveMat;
             var cave = Shapes.Pivot(root, Vector3.zero, "Cave");
             Transform t = cave;
             // Tunnel x[-112,-88] z[-5,5]
@@ -260,7 +272,7 @@ namespace Neanderthal
 
             L.TraderPos = new Vector3(-137f, 0.5f, 28f);
             Trader.Create(root, L.TraderPos, 90f);
-            Shapes.Box(root, L.TraderPos + new Vector3(1.4f, 0.45f, 0f), new Vector3(1f, 0.9f, 2.4f), Mat.Get(Mat.WoodDark));
+            Shapes.Box(root, L.TraderPos + new Vector3(1.4f, 0.45f, 0f), new Vector3(1f, 0.9f, 2.4f), Scenery.WoodMat);
             Workbench.Create(root, new Vector3(-124f, 0.5f, 33f), 0f);
             Campfire.Create(root, new Vector3(-130f, 0.5f, 25f));
             Pickup.Res(root, new Vector3(-140f, 0.6f, 18f), Resource.MetalParts, 1);
