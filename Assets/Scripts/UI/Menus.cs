@@ -181,7 +181,7 @@ namespace Neanderthal
                 if (UIStyle.Button(new Rect(panel.x + 200, y, 140, 44), "СКАСУВАТИ", false, true, 16)) confirmReset = false;
             }
             GUI.Label(new Rect(panel.x + 40, panel.yMax - 130, panel.width - 80, 50),
-                "WASD рух · Shift біг · Ctrl присід · Пробіл стрибок · ЛКМ атака · ПКМ приціл / кидок списа · R перезарядка · E дія · Tab крафт · H лікування · 1–5 зброя",
+                "WASD рух · Shift біг · Ctrl присід (на бігу — підкат) · Пробіл стрибок (у стіну — залізти) · V / Alt кувирок · у воді: Пробіл вгору, Ctrl вниз · ЛКМ атака · ПКМ приціл / кидок списа · R перезарядка · E дія · Tab крафт · H лікування · 1–5 зброя",
                 UIStyle.Wrap(14, UIStyle.TextDim));
             if (UIStyle.Button(new Rect(panel.xMax - 200, panel.yMax - 70, 160, 44), "НАЗАД", true, true, 18))
             {
