@@ -64,6 +64,7 @@ namespace Neanderthal
                 float d = Mathf.Abs(x - RiverX(z));
                 float k = Smooth(10f, 5f, d);
                 h = Mathf.Lerp(h, -2.4f, k);
+                h = Mathf.Lerp(h, -4.8f, Smooth(4.5f, 1.5f, d));   // swimmable channel
             }
             return h;
         }
@@ -103,6 +104,7 @@ namespace Neanderthal
             }) == null)
                 TerrainBuilder.Build(root, Size, 200, Height, Ground, 1024);
             Scenery.WaterPlane(root, new Vector3(30f, WaterY, -20f), new Vector2(80f, 260f));
+            WaterZones.Register(new Rect(-10f, -150f, 80f, 260f), WaterY);
             Boundary(root, 138f);
 
             L.PlayerStart = Ground3(0f, -112f);

@@ -131,6 +131,16 @@ namespace Neanderthal
         public static GameObject Pine(Transform parent, Vector3 pos, float height, int seed)
         {
             EnsureMats();
+            if (TreeFactory.Available)
+            {
+                var tree = TreeFactory.Pine(parent, pos, height, seed);
+                var th = tree.AddComponent<Harvestable>();
+                th.Yield = Resource.Wood;
+                th.Remaining = Mathf.RoundToInt(height * 0.5f);
+                th.HitsPerUnit = 1f;
+                th.FallsWhenDepleted = true;
+                return tree;
+            }
             var rnd = new System.Random(seed);
             var go = new GameObject("Pine");
             go.transform.SetParent(parent, false);
@@ -281,8 +291,12 @@ namespace Neanderthal
 
         public static GameObject WaterPlane(Transform parent, Vector3 center, Vector2 size)
         {
-            var go = Shapes.Prim(PrimitiveType.Plane, parent, center, new Vector3(size.x / 10f, 1f, size.y / 10f), Mat.Get(Mat.Water, 0.92f), null, false, "Water");
+            var mat = Mat.WaterSurface(new Color(0.12f, 0.27f, 0.3f, 0.72f));
+            var go = Shapes.Prim(PrimitiveType.Plane, parent, center, new Vector3(size.x / 10f, 1f, size.y / 10f), mat, null, false, "Water");
             go.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            // Underside, so the surface is visible while swimming below it.
+            var under = Shapes.Prim(PrimitiveType.Plane, go.transform, Vector3.zero, Vector3.one, mat, Quaternion.Euler(180f, 0f, 0f), false, "WaterUnderside");
+            under.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             return go;
         }
 

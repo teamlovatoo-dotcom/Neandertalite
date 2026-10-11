@@ -39,6 +39,11 @@ namespace Neanderthal
 
         public Vector3 Velocity => velocity;
         public bool Grounded { get; private set; }
+        public bool Swimming { get; private set; }
+        public bool HeadUnderwater { get; private set; }
+        public bool Rolling => rollT >= 0f;
+        public float Oxygen = 12f;
+        public float MaxOxygen = 12f;
         public bool IsSprinting { get; private set; }
         public bool Crouching { get; private set; }
         /// <summary>True while a menu (shop, crafting, pause) owns the mouse.</summary>
@@ -55,6 +60,12 @@ namespace Neanderthal
         float airTime;
         float fallStartY;
         bool wasGrounded;
+
+        // Movement extras
+        const float RollTime = 0.55f;
+        float coyote, jumpBuffer, rollT = -1f, slideT, mantleT = -1f, landRollWindow, drownTick, swimSound;
+        Vector3 rollDir, slideDir, mantleFrom, mantleTo;
+        bool wasInWater;
 
         public static PlayerController Spawn(Transform parent, Vector3 pos, float yawDeg)
         {
@@ -183,7 +194,8 @@ namespace Neanderthal
             shake = Mathf.MoveTowards(shake, 0f, dt * 1.5f);
             Vector3 shakeRot = shake > 0f ? new Vector3(Random.Range(-1f, 1f), Random.Range(-1f, 1f), Random.Range(-1f, 1f)) * shake * 3f : Vector3.zero;
             float tilt = -GameInput.Move.x * 1.2f * (Grounded ? 1f : 0.5f);
-            Cam.transform.localRotation = Quaternion.Euler(pitch + shakeRot.x, shakeRot.y, tilt + shakeRot.z);
+            float flip = rollT >= 0f ? 360f * Mathf.SmoothStep(0f, 1f, rollT / RollTime) : 0f;
+            Cam.transform.localRotation = Quaternion.Euler(pitch + shakeRot.x + flip, shakeRot.y, tilt + shakeRot.z);
         }
 
         void Move(float dt)
@@ -192,8 +204,34 @@ namespace Neanderthal
             Vector3 wishDir = (transform.right * input.x + transform.forward * input.y);
             if (wishDir.sqrMagnitude > 1f) wishDir.Normalize();
 
-            // Crouch (shrinks the capsule; stays crouched under ceilings).
-            bool wantCrouch = !InputLocked && GameInput.CrouchHeld;
+            // ---- Water: wading slows you, deep water switches to swimming.
+            bool inWater = WaterZones.Surface(transform.position, out float surface);
+            float depth = inWater ? surface - transform.position.y : 0f;
+            if (inWater && !wasInWater && velocity.y < -3f) Sfx.Play("swing", transform.position, 1f, 0.45f);
+            wasInWater = inWater;
+            Swimming = inWater && depth > 1.2f && mantleT < 0f;
+            HeadUnderwater = inWater && Cam.transform.position.y < surface - 0.05f;
+            UpdateOxygen(dt);
+
+            if (mantleT >= 0f) { DoMantle(dt); return; }
+            if (Swimming) { Swim(dt, input, surface); return; }
+
+            bool locked = InputLocked;
+            if (!locked && GameInput.JumpDown) jumpBuffer = 0.15f; else jumpBuffer -= dt;
+            if (Grounded) coyote = 0.12f; else coyote -= dt;
+            if (!locked && (GameInput.CrouchDown || GameInput.RollDown)) landRollWindow = 0.35f; else landRollWindow -= dt;
+
+            // ---- Dodge roll (V / Alt)
+            if (!locked && GameInput.RollDown && Grounded && rollT < 0f && Stamina >= 15f)
+            {
+                UseStamina(18f);
+                rollT = 0f;
+                rollDir = wishDir.sqrMagnitude > 0.01f ? wishDir.normalized : transform.forward;
+                Sfx.Play("swing", transform.position, 0.8f, 0.6f);
+            }
+
+            // ---- Crouch (forced low during rolls and slides; stays crouched under ceilings)
+            bool wantCrouch = !locked && GameInput.CrouchHeld || rollT >= 0f || slideT > 0f;
             if (!wantCrouch && Crouching)
             {
                 bool blocked = Physics.SphereCast(transform.position + Vector3.up * CrouchHeight * 0.5f, Controller.radius * 0.9f, Vector3.up,
@@ -202,43 +240,67 @@ namespace Neanderthal
             }
             Crouching = wantCrouch;
             float targetH = Crouching ? CrouchHeight : StandHeight;
-            Controller.height = Mathf.MoveTowards(Controller.height, targetH, dt * 6f);
+            Controller.height = Mathf.MoveTowards(Controller.height, targetH, dt * 8f);
             Controller.center = new Vector3(0f, Controller.height * 0.5f, 0f);
-            float targetEye = Crouching ? CrouchHeight - 0.15f : 1.65f;
-            eyeHeight = Mathf.MoveTowards(eyeHeight, targetEye, dt * 5f);
+            float targetEye = rollT >= 0f ? 0.7f : (Crouching ? CrouchHeight - 0.15f : 1.65f);
+            eyeHeight = Mathf.MoveTowards(eyeHeight, targetEye, dt * (rollT >= 0f ? 9f : 5f));
             Cam.transform.localPosition = new Vector3(0f, eyeHeight, 0f);
 
             bool movingForward = input.y > 0.1f;
-            bool wantSprint = !InputLocked && GameInput.SprintHeld && movingForward && !Crouching && Stamina > 1f && !(Weapons.Current != null && Weapons.Current.Aiming);
+            bool wantSprint = !locked && GameInput.SprintHeld && movingForward && !Crouching && Stamina > 1f && !(Weapons.Current != null && Weapons.Current.Aiming);
             IsSprinting = wantSprint && Grounded;
             float maxSpeed = Crouching ? CrouchSpeed : (wantSprint ? SprintSpeed : WalkSpeed);
+            if (inWater) maxSpeed *= Mathf.Lerp(1f, 0.6f, Mathf.Clamp01(depth / 1.2f));
 
-            if (Grounded)
+            // ---- Slide: crouch while sprinting keeps your momentum for a moment
+            Vector3 hvNow = new Vector3(velocity.x, 0f, velocity.z);
+            if (!locked && GameInput.CrouchDown && Grounded && hvNow.magnitude > 6.5f && slideT <= 0f && rollT < 0f)
             {
-                // Friction
+                slideT = 0.85f;
+                slideDir = hvNow.normalized;
+                velocity += slideDir * 2f;
+                Sfx.Play("step", transform.position, 1f, 0.5f);
+            }
+
+            if (rollT >= 0f)
+            {
+                rollT += dt;
+                float k = rollT / RollTime;
+                Vector3 rv = rollDir * Mathf.Lerp(10.5f, 4f, k);
+                velocity.x = rv.x;
+                velocity.z = rv.z;
+                if (Grounded) velocity.y = -2f; else velocity.y -= Gravity * dt;
+                if (k >= 1f) rollT = -1f;
+            }
+            else if (Grounded)
+            {
                 Vector3 hv = new Vector3(velocity.x, 0f, velocity.z);
                 float speed = hv.magnitude;
-                if (speed > 0.001f)
+                if (slideT > 0f)
                 {
-                    float drop = Mathf.Max(speed, 1.5f) * Friction * dt;
-                    hv *= Mathf.Max(0f, speed - drop) / speed;
+                    slideT -= dt;
+                    float drop = 3f * dt;
+                    hv = speed > drop ? hv * ((speed - drop) / speed) : Vector3.zero;
+                    hv += Vector3.Project(wishDir, Vector3.Cross(Vector3.up, slideDir)) * 2f * dt; // slight steering
+                    if (speed < 3.5f || (!locked && !GameInput.CrouchHeld)) slideT = 0f;
                 }
-                hv = Accelerate(hv, wishDir, maxSpeed, GroundAccel, dt);
+                else
+                {
+                    if (speed > 0.001f)
+                    {
+                        float drop = Mathf.Max(speed, 1.5f) * Friction * dt;
+                        hv *= Mathf.Max(0f, speed - drop) / speed;
+                    }
+                    hv = Accelerate(hv, wishDir, maxSpeed, GroundAccel, dt);
+                }
                 velocity.x = hv.x;
                 velocity.z = hv.z;
                 velocity.y = -2f;
 
-                if (!InputLocked && GameInput.JumpDown && Stamina >= JumpCost * 0.5f)
-                {
-                    UseStamina(JumpCost);
-                    velocity.y = JumpSpeed;
-                    Grounded = false;
-                }
-
                 if (IsSprinting) UseStaminaContinuous(SprintCost * dt);
 
                 stepTimer -= dt * speed;
-                if (stepTimer <= 0f && speed > 1f)
+                if (stepTimer <= 0f && speed > 1f && slideT <= 0f)
                 {
                     stepTimer = 2.2f;
                     Sfx.Play("step", transform.position, Crouching ? 0.3f : 0.7f, Random.Range(0.8f, 1.2f));
@@ -250,7 +312,27 @@ namespace Neanderthal
                 hv = Accelerate(hv, wishDir, maxSpeed, AirAccel, dt);
                 velocity.x = hv.x;
                 velocity.z = hv.z;
-                velocity.y -= Gravity * dt;
+                // Snappier arc: heavier when falling, short hop when Space is released early.
+                bool holding = !locked && GameInput.JumpHeld;
+                float g = velocity.y < 0f ? 1.45f : (holding ? 1f : 1.9f);
+                velocity.y -= Gravity * g * dt;
+
+                // Ledge climb: jump into a ledge while holding forward.
+                if (!locked && holding && input.y > 0.1f && velocity.y < 2.5f && TryMantle()) return;
+            }
+
+            // ---- Jump with coyote time and input buffering (can also jump out of a roll or slide)
+            if (jumpBuffer > 0f && coyote > 0f && Stamina >= JumpCost * 0.5f && !locked)
+            {
+                UseStamina(JumpCost);
+                velocity.y = JumpSpeed * (slideT > 0f ? 1.05f : 1f);
+                jumpBuffer = 0f;
+                coyote = 0f;
+                rollT = -1f;
+                slideT = 0f;
+                Grounded = false;
+                // Grounded jump into a high ledge mantles straight away.
+                if (input.y > 0.1f && TryMantle()) return;
             }
 
             var flags = Controller.Move(velocity * dt);
@@ -266,12 +348,19 @@ namespace Neanderthal
             }
             else if (!wasGrounded)
             {
-                // Landed
+                // Landed. Pressing crouch/roll just before touching down turns a hard fall into a roll.
                 float fall = fallStartY - transform.position.y;
-                if (fall > 5f)
+                bool landingRoll = landRollWindow > 0f && fall > 2.5f;
+                if (fall > 5f && !inWater)
                 {
-                    float dmg = (fall - 5f) * 9f;
+                    float dmg = (fall - 5f) * 9f * (landingRoll ? 0.3f : 1f);
                     Health.TakeDamage(new DamageInfo { Amount = dmg, Point = transform.position, Direction = Vector3.down });
+                }
+                if (landingRoll && rollT < 0f)
+                {
+                    rollT = 0f;
+                    Vector3 hv = new Vector3(velocity.x, 0f, velocity.z);
+                    rollDir = hv.sqrMagnitude > 0.5f ? hv.normalized : transform.forward;
                 }
                 if (airTime > 0.3f) Sfx.Play("step", transform.position, 1f, 0.7f);
                 airTime = 0f;
@@ -281,6 +370,119 @@ namespace Neanderthal
             // Fell out of the world
             if (transform.position.y < -60f)
                 Health.TakeDamage(new DamageInfo { Amount = 9999f, Direction = Vector3.down });
+        }
+
+        void Swim(float dt, Vector2 input, float surface)
+        {
+            rollT = -1f;
+            slideT = 0f;
+            Crouching = false;
+            Controller.height = Mathf.MoveTowards(Controller.height, StandHeight, dt * 6f);
+            Controller.center = new Vector3(0f, Controller.height * 0.5f, 0f);
+            eyeHeight = Mathf.MoveTowards(eyeHeight, 1.65f, dt * 5f);
+            Cam.transform.localPosition = new Vector3(0f, eyeHeight, 0f);
+
+            bool locked = InputLocked;
+            var cam = Cam.transform;
+            Vector3 wish = cam.forward * input.y + cam.right * input.x;
+            if (!locked && GameInput.JumpHeld) wish += Vector3.up;
+            if (!locked && GameInput.CrouchHeld) wish += Vector3.down;
+            wish = Vector3.ClampMagnitude(wish, 1f);
+            bool fast = !locked && GameInput.SprintHeld && Stamina > 1f && wish.sqrMagnitude > 0.1f;
+            if (fast) UseStaminaContinuous(10f * dt);
+            IsSprinting = false;
+            Vector3 target = wish * (fast ? 5.2f : 3.4f);
+
+            // Float with the head just above the surface unless diving.
+            float floatFeet = surface - 1.45f;
+            if (wish.y <= 0.05f && !(!locked && GameInput.CrouchHeld))
+                target.y += Mathf.Clamp((floatFeet - transform.position.y) * 2.5f, -1.5f, 1.5f);
+            velocity = Vector3.Lerp(velocity, target, dt * 3f);
+            // Can't fly out of the water; climb out at the shore instead.
+            if (transform.position.y > surface - 1.25f && velocity.y > 0f) velocity.y = 0f;
+
+            Controller.Move(velocity * dt);
+            Grounded = false;
+            wasGrounded = false;
+            fallStartY = transform.position.y;
+            airTime = 0f;
+
+            swimSound -= dt * velocity.magnitude;
+            if (swimSound <= 0f && velocity.magnitude > 1f)
+            {
+                swimSound = 3f;
+                Sfx.Play("swing", transform.position, 0.5f, 0.55f);
+            }
+            // Pull yourself onto a ledge from the water.
+            if (!locked && input.y > 0.1f && GameInput.JumpHeld) TryMantle();
+        }
+
+        void UpdateOxygen(float dt)
+        {
+            if (HeadUnderwater)
+            {
+                Oxygen = Mathf.Max(0f, Oxygen - dt);
+                if (Oxygen <= 0f)
+                {
+                    drownTick -= dt;
+                    if (drownTick <= 0f)
+                    {
+                        drownTick = 1f;
+                        Health.TakeDamage(new DamageInfo { Amount = 10f, Point = transform.position, Direction = Vector3.up });
+                    }
+                }
+            }
+            else
+            {
+                Oxygen = Mathf.Min(MaxOxygen, Oxygen + dt * 4f);
+                drownTick = 0f;
+            }
+        }
+
+        /// <summary>Climb onto a ledge 0.6-2.1 m above the feet if there is room to stand.</summary>
+        bool TryMantle()
+        {
+            if (mantleT >= 0f) return true;
+            Vector3 fwd = transform.forward;
+            Vector3 feet = transform.position;
+            float r = Controller.radius;
+            if (!PhysicsUtil.Raycast(feet + Vector3.up * 0.9f, fwd, r + 0.6f, transform, out _)) return false;
+            Vector3 probe = feet + fwd * (r + 0.5f) + Vector3.up * 2.4f;
+            if (!PhysicsUtil.Raycast(probe, Vector3.down, 2.3f, transform, out var top)) return false;
+            float rise = top.point.y - feet.y;
+            if (rise < 0.6f || rise > 2.1f || top.normal.y < 0.7f) return false;
+            Vector3 stand = top.point + Vector3.up * 0.05f;
+            var hits = Physics.OverlapCapsule(stand + Vector3.up * (r + 0.05f), stand + Vector3.up * (StandHeight - r), r * 0.9f, ~0, QueryTriggerInteraction.Ignore);
+            foreach (var h in hits)
+                if (!h.transform.IsChildOf(transform)) return false;
+            mantleFrom = feet;
+            mantleTo = stand;
+            mantleT = 0f;
+            velocity = Vector3.zero;
+            UseStamina(8f);
+            Sfx.Play("step", feet, 1f, 0.8f);
+            return true;
+        }
+
+        void DoMantle(float dt)
+        {
+            mantleT += dt / 0.42f;
+            float k = Mathf.Clamp01(mantleT);
+            Vector3 up = new Vector3(mantleFrom.x, mantleTo.y + 0.1f, mantleFrom.z);
+            Vector3 p = k < 0.6f ? Vector3.Lerp(mantleFrom, up, Mathf.SmoothStep(0f, 1f, k / 0.6f)) : Vector3.Lerp(up, mantleTo, Mathf.SmoothStep(0f, 1f, (k - 0.6f) / 0.4f));
+            Controller.enabled = false;
+            transform.position = p;
+            Controller.enabled = true;
+            eyeHeight = Mathf.MoveTowards(eyeHeight, 1.65f, dt * 5f);
+            Cam.transform.localPosition = new Vector3(0f, eyeHeight - Mathf.Sin(k * Mathf.PI) * 0.25f, 0f);
+            if (mantleT >= 1f)
+            {
+                mantleT = -1f;
+                Grounded = true;
+                wasGrounded = true;
+                fallStartY = transform.position.y;
+                airTime = 0f;
+            }
         }
 
         static Vector3 Accelerate(Vector3 vel, Vector3 wishDir, float wishSpeed, float accel, float dt)
@@ -309,6 +511,10 @@ namespace Neanderthal
         {
             Health.Revive();
             Stamina = MaxStamina;
+            Oxygen = MaxOxygen;
+            rollT = -1f;
+            slideT = 0f;
+            mantleT = -1f;
             velocity = Vector3.zero;
             pitch = 0f;
             Cam.transform.localPosition = new Vector3(0, eyeHeight, 0);

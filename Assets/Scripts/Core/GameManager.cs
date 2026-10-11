@@ -62,6 +62,7 @@ namespace Neanderthal
             Time.timeScale = 1f;
             GameEvents.ClearAll();
             Creature.All.Clear();
+            WaterZones.Clear();
             if (LevelRoot != null) Destroy(LevelRoot.gameObject);
             LevelRoot = new GameObject("Level").transform;
             ActiveMode = null;

@@ -45,6 +45,7 @@ namespace Neanderthal
             h = Mathf.Lerp(h, -1.8f, Smooth(5f, 2.2f, d));
             float pond = Smooth(9f, 5f, Vector2.Distance(new Vector2(x, z), new Vector2(26f, -14f)));
             h = Mathf.Lerp(h, -2f, pond);
+            h = Mathf.Lerp(h, -4.2f, Smooth(6.5f, 2f, Vector2.Distance(new Vector2(x, z), new Vector2(26f, -14f))));  // deep pond
             return h;
         }
 
@@ -73,6 +74,7 @@ namespace Neanderthal
                 return TerrainBuilder.NaturalGround(x, z, h, s, path, sand);
             }, 2048);
             Scenery.WaterPlane(root, new Vector3(0f, -1.1f, -12f), new Vector2(120f, 40f));
+            WaterZones.Register(new Rect(-60f, -32f, 120f, 40f), -1.1f);
             Boundary(root, 49f);
             GrassField.Create(root, new Rect(-48, -48, 96, 96), 1.6f, ForestHeight, (x, z) =>
             {

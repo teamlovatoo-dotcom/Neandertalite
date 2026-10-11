@@ -26,8 +26,11 @@ namespace Neanderthal
         public static Vector2 Look => Ms == null ? Vector2.zero : Ms.delta.ReadValue() * 0.05f * MouseSensitivity;
         public static float Scroll => Ms == null ? 0f : Mathf.Sign(Ms.scroll.ReadValue().y) * (Mathf.Abs(Ms.scroll.ReadValue().y) > 0.01f ? 1f : 0f);
         public static bool JumpDown => Down(Key.Space);
+        public static bool JumpHeld => Held(Key.Space);
         public static bool SprintHeld => Held(Key.LeftShift);
         public static bool CrouchHeld => Held(Key.LeftCtrl) || Held(Key.C);
+        public static bool CrouchDown => Down(Key.LeftCtrl) || Down(Key.C);
+        public static bool RollDown => Down(Key.V) || Down(Key.LeftAlt);
         public static bool FireHeld => Ms != null && Ms.leftButton.isPressed;
         public static bool FireDown => Ms != null && Ms.leftButton.wasPressedThisFrame;
         public static bool FireUp => Ms != null && Ms.leftButton.wasReleasedThisFrame;
@@ -69,8 +72,11 @@ namespace Neanderthal
             }
         }
         public static bool JumpDown => Input.GetKeyDown(KeyCode.Space);
+        public static bool JumpHeld => Input.GetKey(KeyCode.Space);
         public static bool SprintHeld => Input.GetKey(KeyCode.LeftShift);
         public static bool CrouchHeld => Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.C);
+        public static bool CrouchDown => Input.GetKeyDown(KeyCode.LeftControl) || Input.GetKeyDown(KeyCode.C);
+        public static bool RollDown => Input.GetKeyDown(KeyCode.V) || Input.GetKeyDown(KeyCode.LeftAlt);
         public static bool FireHeld => Input.GetMouseButton(0);
         public static bool FireDown => Input.GetMouseButtonDown(0);
         public static bool FireUp => Input.GetMouseButtonUp(0);

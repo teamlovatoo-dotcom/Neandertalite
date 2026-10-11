@@ -135,6 +135,43 @@ namespace Neanderthal
             return m;
         }
 
+        /// <summary>Glossy, alpha-blended water for Built-in (Standard) and URP (Lit).</summary>
+        public static Material WaterSurface(Color color)
+        {
+            string key = "water_" + ColorUtility.ToHtmlStringRGBA(color);
+            if (cache.TryGetValue(key, out var m) && m != null) return m;
+            m = new Material(Lit) { name = key, color = color };
+            SetFloat(m, "_Glossiness", 0.95f);
+            SetFloat(m, "_Smoothness", 0.95f);
+            SetFloat(m, "_Metallic", 0.1f);
+            // URP Lit
+            SetFloat(m, "_Surface", 1f);
+            SetFloat(m, "_Blend", 0f);
+            SetFloat(m, "_ZWrite", 0f);
+            if (m.HasProperty("_BaseColor")) m.SetColor("_BaseColor", color);
+            m.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            if (GraphicsSettingsHasUrp())
+            {
+                m.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                m.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            }
+            else
+            {
+                // Standard shader "Transparent" mode (premultiplied)
+                SetFloat(m, "_Mode", 3f);
+                m.EnableKeyword("_ALPHAPREMULTIPLY_ON");
+                m.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.One);
+                m.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            }
+            m.SetInt("_ZWrite", 0);
+            m.SetOverrideTag("RenderType", "Transparent");
+            m.renderQueue = 3000;
+            cache[key] = m;
+            return m;
+        }
+
+        static bool GraphicsSettingsHasUrp() => UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline != null;
+
         static void SetFloat(Material m, string prop, float v)
         {
             if (m.HasProperty(prop)) m.SetFloat(prop, v);

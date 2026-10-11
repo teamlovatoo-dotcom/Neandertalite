@@ -13,6 +13,12 @@ namespace Neanderthal.EditorTools
             ti.anisoLevel = 8;
             ti.mipmapEnabled = true;
             ti.maxTextureSize = 1024;
+            if (assetPath.Contains("fir_twig_diff"))
+            {
+                ti.alphaIsTransparency = true;
+                ti.mipMapsPreserveCoverage = true;
+                ti.alphaTestReferenceValue = 0.42f;
+            }
             if (assetPath.Contains("_nor_gl"))
             {
                 ti.textureType = TextureImporterType.NormalMap;

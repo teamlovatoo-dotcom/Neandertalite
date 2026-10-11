@@ -61,6 +61,21 @@ namespace Neanderthal
                 UIStyle.Rect(new Rect(W * 0.5f, H * 0.5f - s * 0.5f, 1, s), new Color(0, 0, 0, 0.9f));
             }
 
+            // Underwater
+            if (p.HeadUnderwater)
+            {
+                UIStyle.Rect(new Rect(0, 0, W, H), new Color(0.04f, 0.2f, 0.27f, 0.45f));
+                var c0 = GUI.color;
+                GUI.color = new Color(0.01f, 0.06f, 0.09f, 0.7f);
+                GUI.DrawTexture(new Rect(0, 0, W, H), UIStyle.Vignette);
+                GUI.color = c0;
+            }
+            if (p.Oxygen < p.MaxOxygen - 0.01f)
+            {
+                UIStyle.Text(new Rect(W * 0.5f - 120, H - 150, 240, 20), UIStyle.Spaced("повітря"), 13, new Color(0.7f, 0.9f, 1f), TextAnchor.MiddleCenter);
+                UIStyle.Bar(new Rect(W * 0.5f - 120, H - 128, 240, 6), p.Oxygen / p.MaxOxygen, p.Oxygen < 3f ? UIStyle.Bad : new Color(0.55f, 0.85f, 1f));
+            }
+
             // Damage vignette
             damageFlash = Mathf.MoveTowards(damageFlash, 0f, Time.unscaledDeltaTime * 1.2f);
             float lowHp = p.Health.Fraction < 0.3f ? (0.3f - p.Health.Fraction) * 1.5f * (0.7f + 0.3f * Mathf.Sin(Time.time * 6f)) : 0f;
