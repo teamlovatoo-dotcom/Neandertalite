@@ -53,6 +53,7 @@ namespace Neanderthal
         void Update()
         {
             WeaponIcons.Pump();
+            DebugOverlay.Tick();
             bool inGame = GameManager.Instance != null && GameManager.Instance.Mode != GameMode.Menu;
 
             // The key that opened a screen this frame must not also close it.

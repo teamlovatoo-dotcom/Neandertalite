@@ -15,6 +15,7 @@ namespace Neanderthal
         public static float MouseSensitivity = 2f;
 
 #if ENABLE_INPUT_SYSTEM && !ENABLE_LEGACY_INPUT_MANAGER
+        public const string Backend = "Input System";
         static Keyboard Kb => Keyboard.current;
         static Mouse Ms => Mouse.current;
         static bool Held(Key k) => Kb != null && Kb[k].isPressed;
@@ -61,6 +62,7 @@ namespace Neanderthal
             }
         }
 #else
+        public const string Backend = "Input Manager (старий)";
         public static Vector2 Move => new Vector2(
             (Input.GetKey(KeyCode.D) ? 1f : 0f) - (Input.GetKey(KeyCode.A) ? 1f : 0f),
             (Input.GetKey(KeyCode.W) ? 1f : 0f) - (Input.GetKey(KeyCode.S) ? 1f : 0f));
