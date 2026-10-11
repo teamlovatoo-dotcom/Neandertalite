@@ -45,3 +45,7 @@ crashlytics-build.properties
 /My project/
 .vsconfig
 /Assets/Settings/
+
+# level check tool build output
+/Tools/levelcheck/bin/
+/Tools/levelcheck/obj/
