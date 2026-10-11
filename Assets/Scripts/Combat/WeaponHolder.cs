@@ -221,7 +221,10 @@ namespace Neanderthal
             }
             if (Player.IsSprinting) target += 5f;
             Player.Cam.fieldOfView = Mathf.Lerp(Player.Cam.fieldOfView, target, dt * 10f);
-            Player.LookScale = Mathf.Clamp(Player.Cam.fieldOfView / Mathf.Max(1f, baseFov), 0.2f, 1f);
+            // Scale the mouse by how much the view is magnified (ratio of tangents), so a target under the crosshair
+            // moves across the screen at the same speed with and without zoom.
+            float zoomRatio = Mathf.Tan(Player.Cam.fieldOfView * 0.5f * Mathf.Deg2Rad) / Mathf.Tan(Mathf.Max(1f, baseFov) * 0.5f * Mathf.Deg2Rad);
+            Player.LookScale = Mathf.Clamp(zoomRatio, 0.15f, 1f);
             // Hide the viewmodel through a scope.
             bool scoped = Current != null && Current.Aiming && Current.Data.ZoomFov > 0 && Current.Data.ZoomFov < 30f;
             foreach (Transform c in ViewRoot) c.gameObject.SetActive(!scoped);

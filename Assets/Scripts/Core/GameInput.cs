@@ -24,7 +24,7 @@ namespace Neanderthal
         public static Vector2 Move => new Vector2(
             (Held(Key.D) ? 1f : 0f) - (Held(Key.A) ? 1f : 0f),
             (Held(Key.W) ? 1f : 0f) - (Held(Key.S) ? 1f : 0f));
-        public static Vector2 Look => Ms == null ? Vector2.zero : Ms.delta.ReadValue() * 0.05f * MouseSensitivity;
+        public static Vector2 Look => Ms == null ? Vector2.zero : Ms.delta.ReadValue() * 0.1f * MouseSensitivity;   // 0.1 = the old Input Manager's "Mouse X/Y" scale, so both feel the same
         public static float Scroll => Ms == null ? 0f : Mathf.Sign(Ms.scroll.ReadValue().y) * (Mathf.Abs(Ms.scroll.ReadValue().y) > 0.01f ? 1f : 0f);
         public static bool JumpDown => Down(Key.Space);
         public static bool JumpHeld => Held(Key.Space);

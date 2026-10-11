@@ -92,6 +92,28 @@ namespace Neanderthal
             return (dir + cam.right * r.x + cam.up * r.y).normalized;
         }
 
+        /// <summary>
+        /// Where a projectile leaves the hand and in which direction, so that (1) it never starts on the far side of a
+        /// wall you are standing against and (2) it flies into the point under the crosshair instead of parallel to it.
+        /// </summary>
+        protected void LaunchFrom(Vector3 dir, float forward, float right, out Vector3 pos, out Vector3 flyDir)
+        {
+            Vector3 eye = EyePos;
+            Vector3 hand = eye + dir * forward + Player.Cam.transform.right * right;
+            Vector3 toHand = hand - eye;
+            float len = toHand.magnitude;
+            pos = hand;
+            // Something between the eye and the hand (a wall, a rock, an enemy pressed against you):
+            // start just in front of the eye; the projectile's first sweep then hits that surface.
+            if (len > 0.001f && PhysicsUtil.Raycast(eye, toHand / len, len + 0.05f, Player.transform, out var block))
+                pos = eye + toHand / len * Mathf.Max(0f, block.distance - 0.08f);
+            // Converge on what the crosshair looks at (or 40 m into the air).
+            float conv = 40f;
+            if (PhysicsUtil.Raycast(eye, dir, 250f, Player.transform, out var target)) conv = Mathf.Max(target.distance, 1.5f);
+            Vector3 aimPoint = eye + dir * conv;
+            flyDir = (aimPoint - pos).sqrMagnitude > 0.0001f ? (aimPoint - pos).normalized : dir;
+        }
+
         /// <summary>Shared melee hit: sphere-cast from the eye; damages creatures, harvests trees/rocks.</summary>
         protected void MeleeStrike(float damage, float range, float knockback)
         {
@@ -201,8 +223,8 @@ namespace Neanderthal
         public override bool GetLaunch(out Vector3 pos, out Vector3 vel, out float gravity)
         {
             gravity = 7f;
-            pos = EyePos + Aim * 0.6f + Player.Cam.transform.right * 0.15f;
-            vel = Aim * Data.ProjectileSpeed * Mathf.Lerp(0.6f, 1f, throwCharge) + Player.Velocity * 0.5f;
+            LaunchFrom(Aim, 0.6f, 0.15f, out pos, out var fly);
+            vel = fly * Data.ProjectileSpeed * Mathf.Lerp(0.6f, 1f, throwCharge) + Player.Velocity * 0.5f;
             return raising && throwCharge > 0.05f;
         }
         public override Vector3 HipEuler => new Vector3(-4f, -3f, 0f);
@@ -268,8 +290,7 @@ namespace Neanderthal
         {
             Player.UseStamina(Data.StaminaCost * 1.5f);
             var visual = WeaponModels.Build(Data.Id, null, out _);
-            Vector3 dir = Spread(Aim, 0.4f + MovementSpread(0.6f));
-            Vector3 pos = EyePos + dir * 0.6f + Player.Cam.transform.right * 0.15f;
+            LaunchFrom(Spread(Aim, 0.4f + MovementSpread(0.6f)), 0.6f, 0.15f, out var pos, out var dir);
             var p = Projectile.Launch(visual, pos, dir * Data.ProjectileSpeed * Mathf.Lerp(0.6f, 1f, throwCharge) + Player.Velocity * 0.5f, Data.Damage * 2.2f * throwCharge, Player.gameObject, 7f);
             p.WeaponId = Data.Id;
             p.RecoverWeaponId = Data.Id;
@@ -360,9 +381,8 @@ namespace Neanderthal
         void Release()
         {
             if (Player.Inventory.TakeAmmo(Data.Ammo, 1) == 0) return;
-            Vector3 dir = Spread(Aim, CurrentSpread());
+            LaunchFrom(Spread(Aim, CurrentSpread()), 0.4f, 0f, out var pos, out var dir);
             var visual = Sling ? WeaponModels.Stone(null) : WeaponModels.Arrow(null, false);
-            Vector3 pos = EyePos + dir * 0.4f;
             var p = Projectile.Launch(visual, pos, dir * Data.ProjectileSpeed * Mathf.Lerp(0.35f, 1f, draw), Data.Damage * Mathf.Lerp(0.25f, 1f, draw * draw), Player.gameObject);
             p.WeaponId = Data.Id;
             p.RecoverAmmo = Data.Ammo;
@@ -468,9 +488,9 @@ namespace Neanderthal
 
             if (Data.ProjectileSpeed > 0f)
             {
-                Vector3 dir = Spread(Aim, spread);
+                LaunchFrom(Spread(Aim, spread), 0.4f, 0f, out var pos, out var dir);
                 var visual = WeaponModels.Arrow(null, true);
-                var p = Projectile.Launch(visual, EyePos + dir * 0.4f, dir * Data.ProjectileSpeed, Data.Damage, Player.gameObject, 4f);
+                var p = Projectile.Launch(visual, pos, dir * Data.ProjectileSpeed, Data.Damage, Player.gameObject, 4f);
                 p.WeaponId = Data.Id;
                 p.RecoverAmmo = AmmoType.Bolt;
                 Player.AddRecoil(1f, 0f);
@@ -525,8 +545,8 @@ namespace Neanderthal
         public override bool GetLaunch(out Vector3 pos, out Vector3 vel, out float gravity)
         {
             gravity = 9.81f;
-            pos = EyePos + Aim * 0.5f + Player.Cam.transform.right * 0.12f;
-            vel = Aim * Data.ProjectileSpeed * Mathf.Lerp(0.45f, 1f, wind) + Player.Velocity * 0.4f;
+            LaunchFrom(Aim, 0.5f, 0.12f, out pos, out var fly);
+            vel = fly * Data.ProjectileSpeed * Mathf.Lerp(0.45f, 1f, wind) + Player.Velocity * 0.4f;
             return winding && wind > 0.05f;
         }
 
@@ -564,9 +584,8 @@ namespace Neanderthal
         {
             if (Player.Inventory.TakeAmmo(Data.Ammo, 1) == 0) return;
             Player.UseStamina(Data.StaminaCost);
-            Vector3 dir = Spread(Aim, CurrentSpread());
+            LaunchFrom(Spread(Aim, CurrentSpread()), 0.5f, 0.12f, out var pos, out var dir);
             var visual = WeaponModels.Stone(null);
-            Vector3 pos = EyePos + dir * 0.5f + Player.Cam.transform.right * 0.12f;
             var p = Projectile.Launch(visual, pos, dir * Data.ProjectileSpeed * Mathf.Lerp(0.45f, 1f, wind) + Player.Velocity * 0.4f,
                 Data.Damage * Mathf.Lerp(0.4f, 1f, wind), Player.gameObject);
             p.WeaponId = Data.Id;

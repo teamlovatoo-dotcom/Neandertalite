@@ -195,7 +195,14 @@ namespace Neanderthal
 
             transform.rotation = Quaternion.Euler(0f, yaw, 0f);
             shake = Mathf.MoveTowards(shake, 0f, dt * 1.5f);
-            Vector3 shakeRot = shake > 0f ? new Vector3(Random.Range(-1f, 1f), Random.Range(-1f, 1f), Random.Range(-1f, 1f)) * shake * 3f : Vector3.zero;
+            // Smooth noise (not a new random value every frame), so a hit reads as a jolt rather than jitter
+            // and looks the same at 30 and 144 FPS.
+            Vector3 shakeRot = Vector3.zero;
+            if (shake > 0f)
+            {
+                float t = Time.time * 24f;
+                shakeRot = new Vector3(Mathf.PerlinNoise(t, 0.31f) - 0.5f, Mathf.PerlinNoise(1.73f, t) - 0.5f, Mathf.PerlinNoise(t, 4.1f) - 0.5f) * (shake * 6f);
+            }
             float tilt = -GameInput.Move.x * 1.2f * (Grounded ? 1f : 0.5f);
             float flip = rollT >= 0f ? 360f * Mathf.SmoothStep(0f, 1f, rollT / RollTime) : 0f;
             Cam.transform.localRotation = Quaternion.Euler(pitch + shakeRot.x + flip, shakeRot.y, tilt + shakeRot.z);
