@@ -44,6 +44,27 @@ namespace Neanderthal
             }
         }
 
+        static Texture2D fadeRight;
+
+        /// <summary>Horizontal gradient, opaque on the left fading to transparent on the right.</summary>
+        public static Texture2D FadeRight
+        {
+            get
+            {
+                if (fadeRight == null)
+                {
+                    fadeRight = new Texture2D(256, 1, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
+                    for (int x = 0; x < 256; x++)
+                    {
+                        float k = x / 255f;
+                        fadeRight.SetPixel(x, 0, new Color(1, 1, 1, 1f - k * k * (3f - 2f * k)));
+                    }
+                    fadeRight.Apply();
+                }
+                return fadeRight;
+            }
+        }
+
         public static Texture2D Ring
         {
             get

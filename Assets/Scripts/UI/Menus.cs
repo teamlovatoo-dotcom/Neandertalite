@@ -29,8 +29,10 @@ namespace Neanderthal
         {
             float W = UIStyle.Width, H = UIStyle.Height;
             // Left-side gradient so the title reads over the 3D backdrop.
-            for (int i = 0; i < 20; i++)
-                UIStyle.Rect(new Rect(i * 40, 0, 40, H), new Color(0.03f, 0.03f, 0.04f, 0.8f * (1f - i / 20f)));
+            var old = GUI.color;
+            GUI.color = new Color(0.03f, 0.03f, 0.04f, 0.85f);
+            GUI.DrawTexture(new Rect(0, 0, 900, H), UIStyle.FadeRight);
+            GUI.color = old;
 
             UIStyle.Shadowed(new Rect(80, 120, 900, 120), "НЕАНДЕРТАЛЕЦЬ", 104, new Color(0.85f, 0.84f, 0.8f), TextAnchor.MiddleLeft, true);
             UIStyle.Shadowed(new Rect(88, 236, 900, 40), UIStyle.Spaced("Дуелі  //  Мультиплеєр"), 22, UIStyle.TextColor, TextAnchor.MiddleLeft);
