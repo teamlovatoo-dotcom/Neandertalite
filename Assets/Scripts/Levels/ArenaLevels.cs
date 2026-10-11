@@ -130,6 +130,24 @@ namespace Neanderthal
                 float s = 1f + (float)rnd.NextDouble() * 2f;
                 Scenery.Rock(root, new Vector3(p.x, ForestHeight(p.x, p.z), p.z), new Vector3(s * 1.4f, s, s), (float)rnd.NextDouble() * 360f, false, false, rnd.Next(4));
             }
+            // Photo-scanned undergrowth: ferns, shrubs, mossy rocks, deadwood
+            System.Func<float, float, bool> forestFloor = (x, z) =>
+                Mathf.Abs(x) < 46f && Mathf.Abs(z) < 46f && Mathf.Abs(z - StreamZ(x)) > 4.5f &&
+                !(Mathf.Abs(z - 14f) < 6.5f && Mathf.Abs(x) < 22f) &&
+                Vector2.Distance(new Vector2(x, z), new Vector2(26f, -14f)) > 10f &&
+                Mathf.Abs(new Vector2(x, z).magnitude - 30f) > 1.8f;
+            var prnd = new System.Random(77);
+            var area = new Rect(-46, -46, 92, 92);
+            PropLibrary.Scatter(PropLibrary.Kind.Fern, root, prnd, 140, area, ForestHeight, forestFloor, 1.1f, 1.9f, false);
+            PropLibrary.Scatter(PropLibrary.Kind.Shrub, root, prnd, 40, area, ForestHeight, forestFloor, 1.8f, 3f, false);
+            PropLibrary.Scatter(PropLibrary.Kind.MossRock, root, prnd, 28, area, ForestHeight, forestFloor, 0.8f, 1.6f, true);
+            PropLibrary.Scatter(PropLibrary.Kind.Branches, root, prnd, 40, area, ForestHeight, forestFloor, 1.2f, 2f, false);
+            PropLibrary.Scatter(PropLibrary.Kind.Stump, root, prnd, 10, area, ForestHeight, forestFloor, 0.8f, 1.2f, true);
+            PropLibrary.Scatter(PropLibrary.Kind.Log, root, prnd, 8, area, ForestHeight, forestFloor, 1.6f, 2.2f, true);
+            // Ferns and stones along the stream banks
+            PropLibrary.Scatter(PropLibrary.Kind.Fern, root, prnd, 50, area, ForestHeight, (x, z) => { float d = Mathf.Abs(z - StreamZ(x)); return d > 4.6f && d < 7f && Mathf.Abs(x) < 46f; }, 1.2f, 2f, false);
+            PropLibrary.Scatter(PropLibrary.Kind.MossRock, root, prnd, 18, area, ForestHeight, (x, z) => { float d = Mathf.Abs(z - StreamZ(x)); return d > 3.5f && d < 5.5f && Mathf.Abs(x) < 46f; }, 0.5f, 1f, true);
+
             // Fallen logs as cover
             Shapes.Stick(root, new Vector3(-12f, ForestHeight(-12f, -30f) + 0.4f, -30f), new Vector3(-4f, ForestHeight(-4f, -33f) + 0.4f, -33f), 0.9f, Mat.Get(Mat.Bark), true);
             Shapes.Stick(root, new Vector3(10f, ForestHeight(10f, 34f) + 0.4f, 34f), new Vector3(18f, ForestHeight(18f, 31f) + 0.4f, 31f), 0.9f, Mat.Get(Mat.Bark), true);
@@ -208,6 +226,12 @@ namespace Neanderthal
                 float s = 1.2f + (float)rnd.NextDouble() * 1.5f;
                 Scenery.Rock(root, new Vector3(p.x, 0f, p.z), new Vector3(s * 1.3f, s, s), (float)rnd.NextDouble() * 360f, true, false, rnd.Next(4));
             }
+
+            var crnd = new System.Random(78);
+            System.Func<float, float, bool> outside = (x, z) => { float e = Mathf.Max(Mathf.Abs(x), Mathf.Abs(z)); return e > 25f && e < 47f; };
+            PropLibrary.Scatter(PropLibrary.Kind.DesertBoulder, root, crnd, 26, new Rect(-47, -47, 94, 94), CanyonHeight, outside, 0.9f, 2.2f, true);
+            PropLibrary.Scatter(PropLibrary.Kind.Branches, root, crnd, 20, new Rect(-47, -47, 94, 94), CanyonHeight, outside, 1.2f, 2f, false);
+            PropLibrary.Scatter(PropLibrary.Kind.Stump, root, crnd, 5, new Rect(-47, -47, 94, 94), CanyonHeight, outside, 0.8f, 1.1f, true);
 
             var wall = Scenery.WallMat;
             var rail = Mat.Get(new Color(0.6f, 0.12f, 0.1f), 0.3f);

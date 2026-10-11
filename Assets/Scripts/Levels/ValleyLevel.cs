@@ -284,6 +284,8 @@ namespace Neanderthal
             ZoneTrigger.Create(root, L.TowerPos, "tower", 14f).Once = false;
         }
 
+        const int seedProps = 91;
+
         static void ScatterNature(ValleyLevel L, Transform root, System.Random rnd)
         {
             var trees = Shapes.Pivot(root, Vector3.zero, "Trees");
@@ -316,6 +318,17 @@ namespace Neanderthal
                 bool small = s < 1.6f;
                 Scenery.Rock(root, new Vector3(p.x, Height(p.x, p.z) + s * 0.1f, p.z), new Vector3(s * 1.3f, s, s * 1.1f), (float)rnd.NextDouble() * 360f, false, small, rnd.Next(4));
             }
+            // Photo-scanned undergrowth
+            var prnd = new System.Random(seedProps);
+            var parea = new Rect(-132, -132, 264, 236);
+            PropLibrary.Scatter(PropLibrary.Kind.Fern, root, prnd, 260, parea, Height, okTree, 1.1f, 2f, false);
+            PropLibrary.Scatter(PropLibrary.Kind.Shrub, root, prnd, 90, parea, Height, okTree, 1.8f, 3.2f, false);
+            PropLibrary.Scatter(PropLibrary.Kind.MossRock, root, prnd, 60, parea, Height, okSmall, 0.8f, 2f, true);
+            PropLibrary.Scatter(PropLibrary.Kind.Branches, root, prnd, 80, parea, Height, okTree, 1.2f, 2.2f, false);
+            PropLibrary.Scatter(PropLibrary.Kind.Stump, root, prnd, 25, parea, Height, okTree, 0.8f, 1.3f, true);
+            PropLibrary.Scatter(PropLibrary.Kind.Log, root, prnd, 18, parea, Height, okTree, 1.6f, 2.4f, true);
+            PropLibrary.Scatter(PropLibrary.Kind.Fern, root, prnd, 80, parea, Height, (x, z) => { if (z > 104f) return false; float d = Mathf.Abs(x - RiverX(z)); return d > 10f && d < 14f; }, 1.2f, 2.2f, false);
+
             // Big boulders along the cliffs.
             foreach (var p in Scenery.Scatter(rnd, 40, new Rect(-145, -145, 290, 290), (x, z) => Mathf.Max(Mathf.Abs(x), Mathf.Abs(z)) > 110f && !InCaveNotch(x, z)))
             {

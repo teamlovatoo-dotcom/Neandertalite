@@ -13,7 +13,7 @@ namespace Neanderthal.EditorTools
             ti.anisoLevel = 8;
             ti.mipmapEnabled = true;
             ti.maxTextureSize = 1024;
-            if (assetPath.Contains("fir_twig_diff"))
+            if (assetPath.EndsWith("_diff.png"))
             {
                 ti.alphaIsTransparency = true;
                 ti.mipMapsPreserveCoverage = true;

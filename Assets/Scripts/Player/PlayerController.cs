@@ -104,6 +104,7 @@ namespace Neanderthal
             Cam.fieldOfView = Profile.Current.Fov;
             camGo.AddComponent<AudioListener>();
             Neanderthal.Rendering.PostFx.SetupCamera(Cam);
+            FireFx.Motes(camGo.transform, new Color(1f, 0.93f, 0.75f, 0.55f));
 
             Weapons = gameObject.AddComponent<WeaponHolder>();
             Weapons.Init(this);

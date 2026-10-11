@@ -17,19 +17,19 @@ namespace Neanderthal
             var l = go.AddComponent<Light>();
             l.type = LightType.Directional;
             l.color = sun;
-            l.intensity = sunIntensity;
+            l.intensity = sunIntensity * 1.35f;
             l.shadows = LightShadows.Soft;
             l.shadowStrength = 0.85f;
             RenderSettings.sun = l;
 
             RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
-            RenderSettings.ambientSkyColor = sky;
-            RenderSettings.ambientEquatorColor = equator;
-            RenderSettings.ambientGroundColor = ground;
+            RenderSettings.ambientSkyColor = sky * 1.3f;
+            RenderSettings.ambientEquatorColor = equator * 1.3f;
+            RenderSettings.ambientGroundColor = ground * 1.2f;
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.ExponentialSquared;
             RenderSettings.fogColor = fog;
-            RenderSettings.fogDensity = fogDensity;
+            RenderSettings.fogDensity = fogDensity * 0.7f;
 
             var skyShader = Shader.Find("Skybox/Procedural");
             if (skyShader != null)
@@ -174,6 +174,15 @@ namespace Neanderthal
         public static GameObject BroadTree(Transform parent, Vector3 pos, float height, int seed)
         {
             EnsureMats();
+            if (TreeFactory.BroadleafAvailable)
+            {
+                var tree = TreeFactory.Broadleaf(parent, pos, height * 1.15f, seed);
+                var th = tree.AddComponent<Harvestable>();
+                th.Yield = Resource.Wood;
+                th.Remaining = Mathf.RoundToInt(height * 0.6f);
+                th.FallsWhenDepleted = true;
+                return tree;
+            }
             var rnd = new System.Random(seed);
             var go = new GameObject("Tree");
             go.transform.SetParent(parent, false);
@@ -297,6 +306,7 @@ namespace Neanderthal
             // Underside, so the surface is visible while swimming below it.
             var under = Shapes.Prim(PrimitiveType.Plane, go.transform, Vector3.zero, Vector3.one, mat, Quaternion.Euler(180f, 0f, 0f), false, "WaterUnderside");
             under.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            WaterAnimator.Attach(go, mat, Mathf.Max(size.x, size.y) / 6f);
             return go;
         }
 
@@ -326,10 +336,8 @@ namespace Neanderthal
         {
             var t = Shapes.Pivot(parent, pos, "TorchPost");
             Shapes.Stick(t, Vector3.zero, new Vector3(0, 1.6f, 0), 0.07f, Mat.Get(Mat.WoodDark), true);
-            Shapes.PointLight(t, new Vector3(0, 1.9f, 0), Mat.Fire, 10f, 1.8f, false);
-            var flame = Shapes.Ball(t, new Vector3(0, 1.75f, 0), new Vector3(0.18f, 0.3f, 0.18f), Mat.Emissive(Mat.Fire, 3f), false);
-            Shapes.SetShadows(flame, false);
-            flame.AddComponent<Flicker>();
+            Shapes.Stick(t, new Vector3(0, 1.55f, 0), new Vector3(0, 1.72f, 0), 0.12f, Mat.Get(Mat.Leather));
+            FireFx.Fire(t, new Vector3(0, 1.72f, 0), 0.38f, false, false, 10f, 2f);
         }
 
         /// <summary>Random point helper that rejects positions failing a predicate.</summary>

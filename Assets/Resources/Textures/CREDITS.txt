@@ -13,3 +13,8 @@ bark           <- pine_bark
 planks         <- weathered_brown_planks
 stone_wall     <- stone_wall
 fortress_wall  <- castle_wall_slates
+
+Props (models + textures, CC0, Poly Haven — https://polyhaven.com, decimated for real-time):
+  fern_02, shrub_04, rock_moss_set_02, dry_branches_medium_01, stone_fire_pit,
+  tree_stump_01, dead_tree_trunk, namaqualand_boulder_02
+Leaf atlas built from tree_small_02 (CC0, Poly Haven); fir twig from fir_tree_01 (CC0, Poly Haven).

@@ -62,9 +62,7 @@ namespace Neanderthal
                 case "torch":
                     Shapes.Stick(t, new Vector3(0, 0, -0.1f), new Vector3(0, 0, 0.42f), 0.04f, wood);
                     Shapes.Stick(t, new Vector3(0, 0, 0.36f), new Vector3(0, 0, 0.48f), 0.07f, leather);
-                    var flame = Shapes.Ball(t, new Vector3(0, 0.03f, 0.53f), new Vector3(0.09f, 0.14f, 0.09f), Mat.Emissive(Mat.Fire, 3f), false);
-                    flame.AddComponent<Flicker>();
-                    Shapes.SetShadows(flame, false);
+                    FireFx.Fire(t, new Vector3(0, 0.03f, 0.5f), 0.22f, false, true);
                     break;
 
                 case "spear":

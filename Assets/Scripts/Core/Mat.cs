@@ -170,6 +170,18 @@ namespace Neanderthal
             return m;
         }
 
+        /// <summary>Alpha-test (cutout) foliage, double-sided where the shader supports it.</summary>
+        public static void MakeCutout(Material m, float cutoff)
+        {
+            SetFloat(m, "_AlphaClip", 1f);
+            SetFloat(m, "_Cutoff", cutoff);
+            SetFloat(m, "_Mode", 1f);
+            SetFloat(m, "_Cull", 0f);
+            m.EnableKeyword("_ALPHATEST_ON");
+            m.SetOverrideTag("RenderType", "TransparentCutout");
+            m.renderQueue = 2450;
+        }
+
         static bool GraphicsSettingsHasUrp() => UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline != null;
 
         static void SetFloat(Material m, string prop, float v)
