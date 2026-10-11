@@ -10,6 +10,7 @@ namespace Neanderthal
         struct DamagePop { public Vector3 World; public float Amount; public HitZone Zone; public float Time; public bool Kill; public Vector2 Drift; }
         static readonly List<DamagePop> pops = new List<DamagePop>();
         static readonly Dictionary<Health, float> recentlyHit = new Dictionary<Health, float>();
+        static readonly List<Health> expired = new List<Health>();
         static Health target;
         static float targetTime = -9f;
         static bool hitWasHead;
@@ -69,6 +70,9 @@ namespace Neanderthal
         {
             var p = PlayerController.Instance;
             if (p == null) return;
+            // The HUD has no buttons; OnGUI also runs for layout and input events, so skip those
+            // (the raycasts for name tags and the target panel would otherwise run 2-3 times per frame).
+            if (Event.current.type != EventType.Repaint) return;
             float W = UIStyle.Width, H = UIStyle.Height;
 
             // Scope overlay
@@ -101,7 +105,7 @@ namespace Neanderthal
             }
 
             // Damage vignette
-            damageFlash = Mathf.MoveTowards(damageFlash, 0f, Time.unscaledDeltaTime * 1.2f);
+            damageFlash = Mathf.MoveTowards(damageFlash, 0f, Time.unscaledDeltaTime * 2.4f);   // once per frame now (was ~2x per frame at 1.2)
             float lowHp = p.Health.Fraction < 0.3f ? (0.3f - p.Health.Fraction) * 1.5f * (0.7f + 0.3f * Mathf.Sin(Time.time * 6f)) : 0f;
             float red = Mathf.Max(damageFlash, lowHp);
             if (red > 0.01f)
@@ -250,7 +254,8 @@ namespace Neanderthal
         /// <summary>Small health bars over opponents you hit in the last few seconds.</summary>
         static void DrawOverheadBars(PlayerController p)
         {
-            var dead = new List<Health>();
+            var dead = expired;
+            dead.Clear();
             foreach (var kv in recentlyHit)
             {
                 var h = kv.Key;
@@ -550,7 +555,7 @@ namespace Neanderthal
                 lastObjective = obj;
                 objectiveFlash = 1f;
             }
-            objectiveFlash = Mathf.MoveTowards(objectiveFlash, 0f, Time.unscaledDeltaTime * 0.5f);
+            objectiveFlash = Mathf.MoveTowards(objectiveFlash, 0f, Time.unscaledDeltaTime * 1f);
             string chapter = gm.ObjectiveHeader;
             UIStyle.Shadowed(new Rect(40, 30, 700, 22), UIStyle.Spaced(chapter), 14, UIStyle.TextDim);
             Color c = Color.Lerp(Color.white, UIStyle.Gold, objectiveFlash);

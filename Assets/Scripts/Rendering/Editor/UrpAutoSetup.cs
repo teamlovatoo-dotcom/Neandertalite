@@ -27,6 +27,7 @@ namespace Neanderthal.Rendering.EditorTools
                 {
                     EnsureAmbientOcclusion();
                     EnsureShadowAtlas();
+                    EnsureForwardPlus();
                 }
             };
         }
@@ -81,6 +82,38 @@ namespace Neanderthal.Rendering.EditorTools
             AssetDatabase.SaveAssets();
             Debug.Log("Neanderthal: URP (HD) is now the active render pipeline.");
             EnsureAmbientOcclusion();
+            EnsureForwardPlus();
+        }
+
+        /// <summary>
+        /// Forward+ renderer: no limit of 8 lights per object, so torches along a long tunnel wall or on the terrain
+        /// no longer switch off as the camera moves. Applied once; if you switch back by hand it stays your choice.
+        /// </summary>
+        [MenuItem("Neanderthal/Graphics/Use Forward+ (many torches)")]
+        public static void ForwardPlusMenu() => EnsureForwardPlus(true);
+
+        const string ForwardPlusKey = "Neanderthal.ForwardPlusApplied";
+
+        static void EnsureForwardPlus() => EnsureForwardPlus(false);
+
+        static void EnsureForwardPlus(bool force)
+        {
+            if (!force && EditorPrefs.GetBool(ForwardPlusKey, false)) return;
+            var renderer = AssetDatabase.LoadAssetAtPath<UniversalRendererData>(RendererPath);
+            if (renderer == null) return;
+            var so = new SerializedObject(renderer);
+            var mode = so.FindProperty("m_RenderingMode");
+            if (mode == null) return;
+            const int ForwardPlus = 2;   // UnityEngine.Rendering.Universal.RenderingMode.ForwardPlus
+            if (mode.intValue != ForwardPlus)
+            {
+                mode.intValue = ForwardPlus;
+                so.ApplyModifiedPropertiesWithoutUndo();
+                EditorUtility.SetDirty(renderer);
+                AssetDatabase.SaveAssets();
+                Debug.Log("Neanderthal: Forward+ rendering enabled (no per-object light limit).");
+            }
+            EditorPrefs.SetBool(ForwardPlusKey, true);
         }
 
         /// <summary>Room in the shadow atlas for several campfires / torches casting shadows at once.</summary>

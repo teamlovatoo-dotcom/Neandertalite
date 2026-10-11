@@ -70,6 +70,7 @@ namespace Neanderthal
         float soundTimer;
         Vector3 knock;
         float retarget;
+        float perceiveTimer;
 
         // Hit reactions
         float flinchT = 9f;              // seconds since the last hit
@@ -261,7 +262,13 @@ namespace Neanderthal
                 retarget = 1.5f;
                 AcquireTarget();
             }
-            Perceive();
+            // Sight checks (raycasts) ten times a second, spread across bots, instead of every frame.
+            perceiveTimer -= dt;
+            if (perceiveTimer <= 0f)
+            {
+                perceiveTimer = 0.1f + Random.value * 0.02f;
+                Perceive();
+            }
             Think(dt);
             ApplyKnockback(dt);
             Animate(dt);

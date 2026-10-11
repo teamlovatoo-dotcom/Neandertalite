@@ -67,7 +67,8 @@ namespace Neanderthal
                 var rot = Quaternion.Euler(0f, b.Yaw, 0f) * Quaternion.Euler(b.Pitch, 0f, 0f);
                 Shapes.Box(under, b.Center, b.Size, For(b.Part), rot).name = b.Part.ToString();
             }
-            foreach (var t in L.Torches) WallTorch(under, t.Pos, t.Yaw);
+            int torchIndex = 0;
+            foreach (var t in L.Torches) WallTorch(under, t.Pos, t.Yaw, torchIndex++ % 2 == 0);
             foreach (var t in L.TorchPosts) Scenery.TorchPost(root, new Vector3(t.Pos.x, Ground(t.Pos.x, t.Pos.z), t.Pos.z));
             foreach (var d in L.Decor) Decor(under, d);
 
@@ -130,7 +131,7 @@ namespace Neanderthal
             return terrain;
         }
 
-        static void WallTorch(Transform t, Vector3 pos, float yaw)
+        static void WallTorch(Transform t, Vector3 pos, float yaw, bool motes)
         {
             var root = Shapes.Pivot(t, Vector3.zero, "WallTorch");
             root.position = pos;
@@ -138,6 +139,39 @@ namespace Neanderthal
             Shapes.Stick(root, new Vector3(0f, -0.35f, -0.25f), new Vector3(0f, 0.05f, 0.05f), 0.05f, ModelKit.For("wood_rough"));
             Shapes.Stick(root, new Vector3(0f, -0.02f, -0.02f), new Vector3(0f, 0.16f, 0.12f), 0.09f, ModelKit.For("char"));
             FireFx.Fire(root, new Vector3(0f, 0.18f, 0.12f), 0.3f, false, false, 10f, 2f, false);
+            if (motes) DustMotes(root, new Vector3(0f, -0.2f, 1.2f));
+        }
+
+        /// <summary>A few warm specks of dust drifting in the torchlight: the air in the tunnels feels thick and old.</summary>
+        static void DustMotes(Transform parent, Vector3 localPos)
+        {
+            var go = new GameObject("DustMotes");
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = localPos;
+            var ps = go.AddComponent<ParticleSystem>();
+            ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            var main = ps.main;
+            main.loop = true;
+            main.startLifetime = new ParticleSystem.MinMaxCurve(4f, 7f);
+            main.startSpeed = new ParticleSystem.MinMaxCurve(0.02f, 0.08f);
+            main.startSize = new ParticleSystem.MinMaxCurve(0.012f, 0.03f);
+            main.startColor = new Color(1f, 0.78f, 0.5f, 0.55f);
+            main.maxParticles = 14;
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
+            main.gravityModifier = -0.002f;
+            var em = ps.emission; em.rateOverTime = 2.2f;
+            var sh = ps.shape; sh.shapeType = ParticleSystemShapeType.Box; sh.scale = new Vector3(2.4f, 1.8f, 2f);
+            var noise = ps.noise; noise.enabled = true; noise.strength = 0.06f; noise.frequency = 0.3f; noise.quality = ParticleSystemNoiseQuality.Low;
+            var col = ps.colorOverLifetime; col.enabled = true;
+            var g = new Gradient();
+            g.SetKeys(new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
+                new[] { new GradientAlphaKey(0f, 0f), new GradientAlphaKey(1f, 0.3f), new GradientAlphaKey(1f, 0.7f), new GradientAlphaKey(0f, 1f) });
+            col.color = g;
+            var r = go.GetComponent<ParticleSystemRenderer>();
+            r.sharedMaterial = FireFx.SoftAlphaMaterial;
+            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            r.receiveShadows = false;
+            ps.Play();
         }
 
         static void Decor(Transform t, CatacombsLayout.Spot d)
