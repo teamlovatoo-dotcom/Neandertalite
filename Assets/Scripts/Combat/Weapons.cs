@@ -73,6 +73,8 @@ namespace Neanderthal
             // A rough hand on the grip so it reads as "held" when there is no hand model.
             if (!hands && Data.Id != "fists")
                 Shapes.Box(Model, new Vector3(0f, -0.01f, 0f), new Vector3(0.085f, 0.09f, 0.1f), Mat.Get(Mat.Skin), null, false);
+            bool blade = Data.Id.Contains("knife") || Data.Id.Contains("dagger") || Data.Id.Contains("axe");
+            Sfx.Play2D(blade ? "equip" : "equip_soft", 0.45f);
             if (Data.LightRange > 0f)
                 Shapes.PointLight(Model, new Vector3(0f, 0.1f, 0.55f), Mat.Fire, Data.LightRange, 2.2f, true);
         }
@@ -207,6 +209,8 @@ namespace Neanderthal
             Sfx.Play("hit", point);
             Effects.Blood(point, -Aim);
             Player.Shake(0.15f);
+            // A few frames of hit-stop on the swing sell the weight of the blow.
+            Holder.HitStop(Data.Cooldown > 0.6f ? 0.08f : 0.05f);
         }
     }
 

@@ -82,7 +82,7 @@ namespace Neanderthal
             }
             else
             {
-                Sfx.Play("thunk", hit.point, 0.8f);
+                Sfx.Play(Blunt ? "stone" : "thunk", hit.point, 0.8f);
                 Effects.Dust(hit.point, hit.normal);
                 var harvest = hit.collider.GetComponentInParent<Harvestable>();
                 if (harvest != null && RecoverWeaponId != null) harvest.Hit(0.3f, hit.point, Owner);

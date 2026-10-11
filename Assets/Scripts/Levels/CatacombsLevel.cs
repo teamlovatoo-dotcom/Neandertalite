@@ -330,6 +330,7 @@ namespace Neanderthal
             Vector3 p = cam.transform.position;
             float target = L.Underground(p) ? 1f : 0f;
             under = Mathf.MoveTowards(under, target, Time.deltaTime * 1.2f);
+            Sfx.Underground = under > 0.5f;
             float k = Mathf.Lerp(1f, 0.06f, under);
             RenderSettings.ambientSkyColor = sky * k;
             RenderSettings.ambientEquatorColor = equator * k;
@@ -345,6 +346,7 @@ namespace Neanderthal
 
         void OnDestroy()
         {
+            Sfx.Underground = false;
             RenderSettings.ambientSkyColor = sky;
             RenderSettings.ambientEquatorColor = equator;
             RenderSettings.ambientGroundColor = ground;

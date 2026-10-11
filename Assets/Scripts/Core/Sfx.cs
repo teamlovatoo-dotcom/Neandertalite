@@ -4,15 +4,101 @@ using UnityEngine;
 namespace Neanderthal
 {
     /// <summary>
-    /// Procedurally synthesised placeholder sounds so the prototype has audio feedback
-    /// without any imported clips. Replace entries in <see cref="clips"/> with real AudioClips later.
+    /// Game sounds. A real recording wins when one exists: every .ogg in <c>Resources/Audio/&lt;name&gt;/</c> is a variant
+    /// and a random one plays each time (see CREDITS.md for their sources). Names without recordings fall back to the
+    /// procedurally synthesised placeholders below, so nothing goes silent. Underground the "step" and "thunk"
+    /// sounds switch to their stone versions and a cave reverb is applied.
     /// </summary>
     public static class Sfx
     {
         const int Rate = 44100;
         static readonly Dictionary<string, AudioClip> clips = new Dictionary<string, AudioClip>();
+        static readonly Dictionary<string, AudioClip[]> recorded = new Dictionary<string, AudioClip[]>();
         static AudioSource uiSource;
         public static float Volume = 0.8f;
+
+        /// <summary>Set by levels while the listener is in caves / catacombs.</summary>
+        public static bool Underground
+        {
+            get => underground;
+            set
+            {
+                if (underground == value && (reverb != null || !value)) return;
+                underground = value;
+                EnsurePool();
+                if (reverb != null) reverb.enabled = value;
+            }
+        }
+        static bool underground;
+
+        // 3D one-shots reuse a fixed pool of sources instead of creating and destroying objects.
+        const int PoolSize = 32;
+        static AudioSource[] pool;
+        static int poolNext;
+        static AudioReverbZone reverb;
+        static AnimationCurve rolloff;
+
+        static void EnsurePool()
+        {
+            if (pool != null && pool[0] != null) return;
+            var root = new GameObject("Sfx Pool");
+            Object.DontDestroyOnLoad(root);
+            // Natural fall-off: loud up close, still audible far away (footsteps matter in duels), silent at the edge.
+            rolloff = new AnimationCurve(new Keyframe(0f, 1f), new Keyframe(0.04f, 0.92f), new Keyframe(0.12f, 0.55f),
+                                         new Keyframe(0.3f, 0.24f), new Keyframe(0.6f, 0.08f), new Keyframe(1f, 0f));
+            pool = new AudioSource[PoolSize];
+            for (int i = 0; i < PoolSize; i++)
+            {
+                var go = new GameObject("sfx");
+                go.transform.SetParent(root.transform, false);
+                var src = go.AddComponent<AudioSource>();
+                src.playOnAwake = false;
+                src.spatialBlend = 1f;
+                src.maxDistance = 60f;
+                src.rolloffMode = AudioRolloffMode.Custom;
+                src.SetCustomCurve(AudioSourceCurveType.CustomRolloff, rolloff);
+                src.dopplerLevel = 0f;
+                pool[i] = src;
+            }
+            // A zone this large always contains the listener, so it works as an on/off cave reverb.
+            reverb = root.AddComponent<AudioReverbZone>();
+            reverb.reverbPreset = AudioReverbPreset.StoneCorridor;
+            reverb.minDistance = 5000f;
+            reverb.maxDistance = 6000f;
+            reverb.enabled = underground;
+        }
+
+        static AudioSource NextSource()
+        {
+            EnsurePool();
+            for (int i = 0; i < PoolSize; i++)
+            {
+                var s = pool[(poolNext + i) % PoolSize];
+                if (!s.isPlaying) { poolNext = (poolNext + i + 1) % PoolSize; return s; }
+            }
+            // All busy: steal the oldest.
+            var steal = pool[poolNext];
+            poolNext = (poolNext + 1) % PoolSize;
+            return steal;
+        }
+
+        static AudioClip Recorded(string name)
+        {
+            if (!recorded.TryGetValue(name, out var list))
+            {
+                list = Resources.LoadAll<AudioClip>("Audio/" + name);
+                recorded[name] = list;
+            }
+            return list.Length > 0 ? list[Random.Range(0, list.Length)] : null;
+        }
+
+        static string Resolve(string name)
+        {
+            if (!underground) return name;
+            if (name == "step") return "step_stone";
+            if (name == "thunk") return "stone";
+            return name;
+        }
 
         public static void Init()
         {
@@ -81,25 +167,26 @@ namespace Neanderthal
         public static AudioClip Get(string name)
         {
             Init();
-            return clips.TryGetValue(name, out var c) ? c : null;
+            var rec = Recorded(Resolve(name));
+            if (rec != null) return rec;
+            if (clips.TryGetValue(name, out var c)) return c;
+            // Material sounds that only exist as recordings fall back to the generic thud.
+            return name == "stone" || name == "chop" ? clips["thunk"] : null;
         }
 
-        public static void Play(string name, Vector3 pos, float volume = 1f, float pitch = 1f)
+        public static void Play(string name, Vector3 pos, float volume = 1f, float pitch = 1f, float maxDistance = 60f)
         {
             var clip = Get(name);
             if (clip == null) return;
-            var go = new GameObject("sfx_" + name);
-            go.transform.position = pos;
-            var src = go.AddComponent<AudioSource>();
+            var src = NextSource();
+            src.Stop();
+            src.transform.position = pos;
             src.clip = clip;
             src.volume = volume * Volume;
             src.pitch = pitch * Random.Range(0.93f, 1.07f);
-            src.spatialBlend = 1f;
-            src.minDistance = 2f;
-            src.maxDistance = 60f;
-            src.rolloffMode = AudioRolloffMode.Linear;
+            src.minDistance = 1.5f;
+            src.maxDistance = maxDistance;
             src.Play();
-            Object.Destroy(go, clip.length / Mathf.Max(0.1f, src.pitch) + 0.1f);
         }
 
         public static void Play2D(string name, float volume = 1f, float pitch = 1f)
@@ -129,7 +216,9 @@ namespace Neanderthal
             src.volume = volume * Volume;
             src.spatialBlend = maxDistance > 0 ? 1f : 0f;
             src.maxDistance = Mathf.Max(1f, maxDistance);
-            src.rolloffMode = AudioRolloffMode.Linear;
+            EnsurePool();
+            src.rolloffMode = AudioRolloffMode.Custom;
+            src.SetCustomCurve(AudioSourceCurveType.CustomRolloff, rolloff);
             src.Play();
             return src;
         }

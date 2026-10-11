@@ -20,7 +20,7 @@ namespace Neanderthal
         {
             if (depleted) return;
             Effects.Chips(point, (attacker != null ? attacker.transform.position - point : Vector3.up).normalized, ChipColor);
-            Sfx.Play("thunk", point, 0.8f, Yield == Resource.Stone ? 1.4f : 0.9f);
+            Sfx.Play(Yield == Resource.Stone ? "stone" : Yield == Resource.Wood ? "chop" : "thunk", point, 0.8f, Yield == Resource.Stone ? 1.1f : 0.95f);
             progress += power;
             int gained = 0;
             while (progress >= HitsPerUnit && Remaining > 0)

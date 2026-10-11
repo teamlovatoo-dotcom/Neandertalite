@@ -372,7 +372,11 @@ namespace Neanderthal
                     Vector3 hv = new Vector3(velocity.x, 0f, velocity.z);
                     rollDir = hv.sqrMagnitude > 0.5f ? hv.normalized : transform.forward;
                 }
-                if (airTime > 0.3f) Sfx.Play("step", transform.position, 1f, 0.7f);
+                if (airTime > 0.3f)
+                {
+                    Sfx.Play("step", transform.position, 1f, 0.7f);
+                    if (!Sfx.Underground || airTime > 0.6f) Effects.FootDust(transform.position, Mathf.Clamp01(airTime));
+                }
                 airTime = 0f;
                 fallStartY = transform.position.y;
             }

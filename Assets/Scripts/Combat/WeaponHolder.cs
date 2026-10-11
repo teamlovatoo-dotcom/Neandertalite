@@ -25,6 +25,10 @@ namespace Neanderthal
         float switchAnim;               // 1 = fully lowered
         string pendingSwitch;
         float baseFov = 80f;
+        float hitStopT;
+
+        /// <summary>Freeze the weapon's swing for a moment when it connects.</summary>
+        public void HitStop(float seconds) => hitStopT = Mathf.Max(hitStopT, seconds);
         public const float ViewScale = 0.3f;
 
         public void Init(PlayerController player)
@@ -157,7 +161,9 @@ namespace Neanderthal
                 switchAnim = Mathf.MoveTowards(switchAnim, 0f, dt * 5f);
             }
 
-            if (Current != null && switchAnim < 0.3f) Current.Tick(dt, inputOk);
+            float tickDt = dt;
+            if (hitStopT > 0f) { hitStopT -= dt; tickDt = 0f; }
+            if (Current != null && switchAnim < 0.3f) Current.Tick(tickDt, inputOk);
 
             Animate(dt);
             UpdateFov(dt);
