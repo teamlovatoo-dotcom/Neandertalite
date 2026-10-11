@@ -34,3 +34,13 @@ Thumbs.db
 *.aab
 *.unitypackage
 crashlytics-build.properties
+
+# Generated locally by Unity for this procedural prototype (no asset references yet).
+# Keeps `git pull` / GitHub Desktop updates conflict-free on the player's machine.
+*.meta
+/Assets/Scenes/
+/ProjectSettings/*.asset
+/ProjectSettings/*.json
+/Packages/packages-lock.json
+/My project/
+.vsconfig
