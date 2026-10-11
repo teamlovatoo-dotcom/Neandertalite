@@ -86,6 +86,7 @@ namespace Neanderthal
                 $"FPS {(avg > 0 ? 1f / avg : 0):0}   кадр {avg * 1000f:0.0} мс   найгірший {worst * 1000f:0.0} мс",
                 $"Лампи: точкові {pointLights}, прожектори {spotLights}, з тінями {shadowLights}   Боти/звірі: {creatures}",
                 $"Збирання сміття (GC): {gcs} за {minutes:0.0} хв   Пам'ять C#: {System.GC.GetTotalMemory(false) / (1024f * 1024f):0} МБ",
+                $"Анімації: {(AnimLibrary.Ready ? "кліпи" : "з коду")} — {AnimLibrary.Summary}",
                 $"Ввід: {GameInput.Backend}   миша за кадр: {GameInput.Look.x:0.00}, {GameInput.Look.y:0.00}   чутливість {GameInput.MouseSensitivity:0.0}",
             };
             var p = PlayerController.Instance;

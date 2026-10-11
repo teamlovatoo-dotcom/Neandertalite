@@ -10,6 +10,8 @@ namespace Neanderthal
         public readonly List<Transform> Legs = new List<Transform>();
         public readonly List<float> LegPhase = new List<float>();
         public Transform ArmL, ArmR, Head, Neck;
+        /// <summary>Extra bones of the skinned model (null on primitive bodies): bent knees, elbows and a living spine.</summary>
+        public Transform Spine, Chest, ForeL, ForeR, ShinL, ShinR;
         public Transform HeldWeapon;
         public BowString Bow;
         public float Height = 1.8f;
@@ -17,6 +19,8 @@ namespace Neanderthal
         public float EyeHeight = 1.6f;
         public float StrideAmp = 30f;
         public bool Biped;
+        /// <summary>Clip-based animation (only when the clip library is installed and the rig maps to Humanoid).</summary>
+        public CreatureAnimator Anim;
 
         /// <summary>True when the body is the imported skinned model (bones with rest rotations).</summary>
         public bool Skinned;
@@ -42,6 +46,23 @@ namespace Neanderthal
             Vector3 fwd = p.InverseTransformDirection(Root.forward);
             bone.localRotation = Quaternion.AngleAxis(euler.y, up) * Quaternion.AngleAxis(euler.x, right) * Quaternion.AngleAxis(euler.z, fwd) * rest;
         }
+
+        /// <summary>
+        /// Rotate a bone on top of whatever pose it has this frame (procedural or from an animation clip), in the
+        /// body's axes like <see cref="Pose"/>. Used for hit flinches and head look; doesn't change the stored pose.
+        /// </summary>
+        public void Additive(Transform bone, Vector3 euler)
+        {
+            if (bone == null || euler.sqrMagnitude < 1e-6f) return;
+            var p = bone.parent;
+            if (p == null) return;
+            Vector3 right = p.InverseTransformDirection(Root.right);
+            Vector3 up = p.InverseTransformDirection(Root.up);
+            Vector3 fwd = p.InverseTransformDirection(Root.forward);
+            bone.localRotation = Quaternion.AngleAxis(euler.y, up) * Quaternion.AngleAxis(euler.x, right) * Quaternion.AngleAxis(euler.z, fwd) * bone.localRotation;
+        }
+
+        public Vector3 Current(Transform bone) => bone != null && current.TryGetValue(bone, out var c) ? c : Vector3.zero;
 
         public void PoseSmooth(Transform bone, Vector3 target, float t)
         {
@@ -221,6 +242,9 @@ namespace Neanderthal
             float footY = Mathf.Min(root.InverseTransformPoint(FindDeep(t, "Foot.L") != null ? FindDeep(t, "Foot.L").position : t.position).y, 0.09f * build);
             t.localPosition += Vector3.down * (footY - 0.08f * build);
 
+            // Animation clips (optional): the avatar must be built from the T-pose, before the arms are lowered.
+            var anim = CreatureAnimator.TryCreate(model);
+
             // T-pose -> arms hanging slightly outwards.
             foreach (var (upper, lower) in new[] { (armL, foreL), (armR, foreR) })
             {
@@ -231,11 +255,15 @@ namespace Neanderthal
                 upper.rotation = Quaternion.FromToRotation(dir, target) * upper.rotation;
             }
 
-            var b = new CreatureBody { Biped = true, Skinned = true, Root = root, Height = 1.75f * build, Radius = 0.38f, EyeHeight = 1.62f * build, StrideAmp = 32f };
+            var b = new CreatureBody { Biped = true, Skinned = true, Root = root, Height = 1.75f * build, Radius = 0.38f, EyeHeight = 1.62f * build, StrideAmp = 32f, Anim = anim };
             b.Legs.Add(legL); b.LegPhase.Add(0f);
             b.Legs.Add(legR); b.LegPhase.Add(Mathf.PI);
             b.ArmL = armL; b.ArmR = armR; b.Neck = neck; b.Head = head;
-            foreach (var bone in new[] { legL, legR, armL, armR, neck }) b.Rest[bone] = bone.localRotation;
+            b.Spine = FindDeep(t, "Spine"); b.Chest = FindDeep(t, "Chest");
+            b.ForeL = foreL; b.ForeR = foreR;
+            b.ShinL = FindDeep(t, "LowerLeg.L"); b.ShinR = FindDeep(t, "LowerLeg.R");
+            foreach (var bone in new[] { legL, legR, armL, armR, neck, b.Spine, b.Chest, foreL, foreR, b.ShinL, b.ShinR })
+                if (bone != null) b.Rest[bone] = bone.localRotation;
 
             // Materials: skin tone varies per hunter.
             var skinTone = Color.Lerp(new Color(0.42f, 0.26f, 0.17f), new Color(0.3f, 0.18f, 0.11f), (float)rnd.NextDouble());

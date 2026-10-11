@@ -18,6 +18,10 @@ namespace Neanderthal
         public CreatureType Type;
         public Health Health;
         [System.NonSerialized] public CreatureBody Body;
+        /// <summary>Animation clips for humanoid bodies when the clip library is installed (null = procedural).</summary>
+        public CreatureAnimator Anim => Body?.Anim;
+        public float CurrentSpeed => currentSpeed;
+        Vector3 lookEuler;
         public float WalkSpeed = 1.6f;
         public float RunSpeed = 5f;
         public float TurnSpeed = 360f;
@@ -67,6 +71,16 @@ namespace Neanderthal
         Vector3 knock;
         float retarget;
 
+        // Hit reactions
+        float flinchT = 9f;              // seconds since the last hit
+        float flinchPower;
+        HitZone flinchZone;
+        float flinchSide;                // -1 hit from the left, +1 from the right
+        float flinchBack;                // +1 pushed backwards, -1 pushed forwards (hit from behind)
+        float hitStop;                   // tiny freeze when a melee blow lands, sells the impact
+        float staggerT;                  // heavy hit: slowed and the attack is interrupted
+        Vector3 deathDirLocal = Vector3.back;
+
         public bool IsDead => state == State.Dead;
 
         public static string TypeName(CreatureType t)
@@ -85,6 +99,7 @@ namespace Neanderthal
 
         void OnEnable() => All.Add(this);
         void OnDisable() => All.Remove(this);
+        void OnDestroy() => Anim?.Dispose();
 
         public void Init()
         {
@@ -99,9 +114,10 @@ namespace Neanderthal
         void OnDamaged(DamageInfo info)
         {
             lastHurtTime = Time.time;
-            Effects.Blood(info.Point == Vector3.zero ? transform.position + Vector3.up : info.Point, -info.Direction);
+            if (info.Point == Vector3.zero) Effects.Blood(transform.position + Vector3.up, -info.Direction);
             Vector3 k = info.Direction; k.y = 0f;
             knock += k.normalized * info.Knockback * (Type == CreatureType.Mammoth ? 0.1f : 1f);
+            React(info);
             if (Random.value < 0.5f) Sfx.Play(Voice(), transform.position, 0.6f, PitchForType());
 
             if (info.Attacker != null)
@@ -112,6 +128,38 @@ namespace Neanderthal
             if (Skittish) { SetState(State.Flee); return; }
             if (state == State.Idle || state == State.Wander || state == State.Wary) SetState(State.Chase);
             AlertPack();
+        }
+
+        /// <summary>Flinch by body part, a short hit-stop for melee blows, and a stagger that breaks the attack on heavy hits.</summary>
+        void React(DamageInfo info)
+        {
+            float size = Type == CreatureType.Mammoth ? 0.25f : Type == CreatureType.Bear ? 0.6f : 1f;
+            flinchT = 0f;
+            flinchZone = info.Zone;
+            flinchPower = Mathf.Clamp(info.Amount / 30f, 0.35f, 1.2f) * size;
+            Vector3 dir = info.Direction.sqrMagnitude > 0.001f ? info.Direction : -transform.forward;
+            Vector3 local = transform.InverseTransformDirection(dir);
+            flinchSide = Mathf.Clamp(local.x * 2f, -1f, 1f);
+            flinchBack = local.z <= 0f ? 1f : -1f;
+            local.y = 0f;
+            if (local.sqrMagnitude > 0.001f) deathDirLocal = local.normalized;
+
+            var w = string.IsNullOrEmpty(info.WeaponId) ? null : ItemDatabase.Weapon(info.WeaponId);
+            bool melee = w != null && (w.Kind == WeaponKind.Melee || w.Kind == WeaponKind.Spear);
+            if (melee) hitStop = 0.06f;
+            if (Health.Current > 0f) Anim?.Hit(info.Zone);
+
+            bool heavy = info.Amount >= 30f || info.Knockback >= 3.5f || info.Zone == HitZone.Head;
+            if (heavy && Type != CreatureType.Mammoth)
+            {
+                staggerT = 0.45f * size;
+                if (windup >= 0f)
+                {
+                    windup = -1f;
+                    if (Body.Bow != null) Body.Bow.Draw = 0f;
+                    attackTimer = Mathf.Max(attackTimer, 0.7f);
+                }
+            }
         }
 
         void AlertPack()
@@ -198,6 +246,14 @@ namespace Neanderthal
                 DeathAnim(dt);
                 return;
             }
+            if (hitStop > 0f)
+            {
+                hitStop -= dt;
+                Anim?.SetPaused(hitStop > 0f);
+                return;
+            }
+            flinchT += dt;
+            staggerT -= dt;
 
             retarget -= dt;
             if (Target == null || Target.IsDead || (TargetSelector != null && retarget <= 0f && windup < 0f))
@@ -348,7 +404,7 @@ namespace Neanderthal
                     }
                     Vector3 goal = seen ? Target.transform.position : lastKnownPos;
                     MoveTo(goal, RunSpeed, dt);
-                    if (dist < AttackRange && attackTimer <= 0f && seen) StartMelee();
+                    if (dist < AttackRange && attackTimer <= 0f && seen && staggerT <= 0f) StartMelee();
                     break;
                 }
 
@@ -366,7 +422,7 @@ namespace Neanderthal
                         MoveTo(transform.position + (side + approach * 0.7f) * 3f, WalkSpeed * 1.8f, dt, false);
                     }
                     else currentSpeed = Mathf.MoveTowards(currentSpeed, 0f, dt * 6f);
-                    if (attackTimer <= 0f && seen) StartRanged();
+                    if (attackTimer <= 0f && seen && staggerT <= 0f) StartRanged();
                     break;
                 }
             }
@@ -383,6 +439,7 @@ namespace Neanderthal
         {
             windup = 0f;
             rangedWindup = false;
+            Anim?.Attack(AttackWindup, MeleeWeapon == "spear" || MeleeWeapon == "obsidian_spear" || MeleeWeapon == "knife");
             if (Type == CreatureType.Wolf || Type == CreatureType.Bear) Sfx.Play("growl", transform.position, 0.6f, PitchForType());
             if (Type == CreatureType.Mammoth) Sfx.Play("trumpet", transform.position, 0.9f);
         }
@@ -391,6 +448,7 @@ namespace Neanderthal
         {
             windup = 0f;
             rangedWindup = true;
+            Anim?.Shoot(1f);
             Sfx.Play("draw", transform.position, 0.5f);
         }
 
@@ -437,6 +495,7 @@ namespace Neanderthal
             else
                 Target.TakeDamage(new DamageInfo { Amount = AttackDamage, Point = aimAt, Direction = dir, Attacker = gameObject, Knockback = Knockback, WeaponId = MeleeWeaponId });
             Sfx.Play("hit", aimAt, 0.8f, 0.8f);
+            Effects.Blood(aimAt, -dir);
             return true;
         }
 
@@ -562,6 +621,7 @@ namespace Neanderthal
             chosen.y = 0f;
             chosen.Normalize();
 
+            if (staggerT > 0f) speed *= 0.3f;
             currentSpeed = Mathf.MoveTowards(currentSpeed, speed, dt * speed * 3f);
             if (face) FaceTowards(transform.position + chosen, dt);
             float step = Mathf.Min(currentSpeed * dt, dist);
@@ -617,6 +677,9 @@ namespace Neanderthal
 
         void Animate(float dt)
         {
+            // With animation clips the Animator poses the bones after Update; flinches go on top in LateUpdate.
+            if (Anim != null && Anim.Drive(dt, this)) return;
+
             float speedNorm = Mathf.Clamp01(currentSpeed / Mathf.Max(0.1f, RunSpeed));
             gaitPhase += dt * (3f + currentSpeed * (Body.Biped ? 2.2f : 2.6f)) * (Type == CreatureType.Mammoth ? 0.5f : 1f);
             float amp = Body.StrideAmp * Mathf.Clamp01(currentSpeed / 1.5f);
@@ -632,25 +695,50 @@ namespace Neanderthal
 
             if (Body.Biped)
             {
+                // Knees bend while the leg swings through, a little even when standing (no stiff "stilts").
+                for (int i = 0; i < Body.Legs.Count && i < 2; i++)
+                {
+                    float ph = gaitPhase + Body.LegPhase[i];
+                    float knee = 6f + Mathf.Max(0f, Mathf.Cos(ph)) * amp * 1.4f;
+                    Body.Pose(i == 0 ? Body.ShinL : Body.ShinR, new Vector3(knee, 0f, 0f));
+                }
+                float breath = Mathf.Sin(Time.time * 1.7f + transform.GetInstanceID()) * 1.5f;
+                float twist = Mathf.Sin(gaitPhase) * 7f * speedNorm;          // shoulders counter the hips
+
                 if (rangedWindup && windup >= 0f || state == State.Ranged)
                 {
-                    // Bow raised: left arm forward, right arm draws.
+                    // Bow raised: left arm forward, right arm draws, torso turned side-on.
                     Body.PoseSmooth(Body.ArmL, new Vector3(-85f, 0f, 0f), dt * 10f);
                     Body.PoseSmooth(Body.ArmR, new Vector3(-85f + attackPose * 10f, -35f * attackPose, 0f), dt * 10f);
+                    Body.PoseSmooth(Body.ForeL, new Vector3(-5f, 0f, 0f), dt * 10f);
+                    Body.PoseSmooth(Body.ForeR, new Vector3(-40f - 70f * attackPose, 0f, 0f), dt * 10f);
+                    Body.PoseSmooth(Body.Spine, new Vector3(0f, 25f, 0f), dt * 8f);
                 }
                 else if (windup >= 0f)
                 {
-                    // Raise then stab.
+                    // Wind up behind the shoulder, then strike through with the whole body.
                     float a = attackPose < 0.7f ? Mathf.Lerp(0f, -150f, attackPose / 0.7f) : Mathf.Lerp(-150f, -60f, (attackPose - 0.7f) / 0.3f);
+                    float coil = attackPose < 0.7f ? attackPose / 0.7f : 1f - (attackPose - 0.7f) / 0.3f * 1.6f;
                     Body.Pose(Body.ArmR, new Vector3(a, 0f, 0f));
+                    Body.Pose(Body.ForeR, new Vector3(-50f * coil, 0f, 0f));
+                    Body.PoseSmooth(Body.ArmL, new Vector3(-35f, 0f, -10f), dt * 10f);
+                    Body.PoseSmooth(Body.ForeL, new Vector3(-60f, 0f, 0f), dt * 10f);
+                    Body.Pose(Body.Spine, new Vector3(-6f * coil + 10f * (1f - coil), -22f * coil, 0f));
+                    Body.Pose(Body.Chest, new Vector3(breath, -10f * coil, 0f));
                 }
                 else
                 {
                     float swing = Mathf.Sin(gaitPhase) * amp * 0.6f;
                     Body.PoseSmooth(Body.ArmL, new Vector3(swing, 0f, -5f), dt * 8f);
                     Body.PoseSmooth(Body.ArmR, new Vector3(-swing - 20f, 0f, 5f), dt * 8f);
+                    Body.PoseSmooth(Body.ForeL, new Vector3(-15f - 25f * speedNorm, 0f, 0f), dt * 8f);
+                    Body.PoseSmooth(Body.ForeR, new Vector3(-30f - 25f * speedNorm, 0f, 0f), dt * 8f);
+                    Body.PoseSmooth(Body.Spine, new Vector3(4f * speedNorm, twist, 0f), dt * 8f);
+                    Body.Pose(Body.Chest, new Vector3(breath, -twist * 0.5f, 0f));
                 }
-                Body.Root.localRotation = Quaternion.Euler(speedNorm * 8f, 0f, 0f);
+                LookAtTarget(dt);
+                Body.Root.localRotation = Quaternion.Euler(speedNorm * 8f, 0f, Mathf.Sin(gaitPhase) * 2.5f * speedNorm);
+                Body.Root.localPosition = new Vector3(0f, -Mathf.Abs(Mathf.Cos(gaitPhase)) * 0.035f * speedNorm, 0f);
             }
             else
             {
@@ -660,14 +748,96 @@ namespace Neanderthal
                 Body.Pose(Body.Neck, new Vector3(headPitch + Mathf.Sin(gaitPhase * 2f) * 3f * speedNorm, 0f, 0f));
                 Body.Root.localPosition = new Vector3(0f, Mathf.Abs(Mathf.Sin(gaitPhase)) * 0.04f * speedNorm, lunge * Body.Radius * 0.5f);
             }
+            AnimateOverlay(dt);
+        }
+
+        void LateUpdate()
+        {
+            if (Anim == null || !Anim.Active || state == State.Dead) return;
+            if (Body.Biped)
+            {
+                LookAtTarget(Time.deltaTime);
+                Body.Additive(Body.Neck, lookEuler * 0.7f);
+            }
+            AnimateOverlay(Time.deltaTime);
+        }
+
+        /// <summary>Head turns towards the target (within what a neck can do).</summary>
+        void LookAtTarget(float dt)
+        {
+            Vector3 look = Vector3.zero;
+            if (Target != null && !Target.IsDead && Time.time - lastSeenTime < 2f)
+            {
+                Vector3 to = transform.InverseTransformPoint(Target.transform.position + Vector3.up * 1.5f) - Vector3.up * Body.EyeHeight;
+                float yaw = Mathf.Clamp(Mathf.Atan2(to.x, to.z) * Mathf.Rad2Deg, -55f, 55f);
+                float pitch = Mathf.Clamp(-Mathf.Atan2(to.y, new Vector2(to.x, to.z).magnitude) * Mathf.Rad2Deg, -30f, 35f);
+                look = new Vector3(pitch, yaw, 0f);
+            }
+            lookEuler = Vector3.Lerp(lookEuler, look, Mathf.Clamp01(dt * 6f));
+            if (Anim == null || !Anim.Active) Body.Pose(Body.Neck, lookEuler);
+        }
+
+        /// <summary>Hit flinch layered on top of whatever pose this frame has (procedural or animation clip).</summary>
+        void AnimateOverlay(float dt)
+        {
+            if (flinchT > 0.6f || !Body.Biped) return;
+            // Snap in within 50 ms, ease out over ~0.4 s.
+            float f = flinchPower * Mathf.Clamp01(flinchT / 0.05f) * Mathf.Exp(-Mathf.Max(0f, flinchT - 0.05f) * 7f);
+            float back = flinchBack;
+            switch (flinchZone)
+            {
+                case HitZone.Head:
+                    Body.Additive(Body.Neck, new Vector3(-35f * f * back, 20f * f * flinchSide, -15f * f * flinchSide));
+                    Body.Additive(Body.Spine, new Vector3(-8f * f * back, 0f, 0f));
+                    break;
+                case HitZone.Leg:
+                    Body.Additive(Body.Spine, new Vector3(12f * f, 0f, 10f * f * flinchSide));
+                    Body.Root.localPosition += Vector3.down * 0.1f * f;
+                    break;
+                case HitZone.Arm:
+                    Body.Additive(flinchSide < 0f ? Body.ArmL : Body.ArmR, new Vector3(25f * f, 0f, 30f * f * flinchSide));
+                    Body.Additive(Body.Spine, new Vector3(0f, -18f * f * flinchSide, 0f));
+                    break;
+                default:
+                    Body.Additive(Body.Spine, new Vector3(-16f * f * back, -12f * f * flinchSide, 0f));
+                    Body.Additive(Body.Chest, new Vector3(-10f * f * back, 0f, 0f));
+                    Body.Additive(Body.Neck, new Vector3(12f * f * back, 0f, 0f));
+                    break;
+            }
+            // The whole body rocks a little with the blow.
+            Body.Root.localRotation = Quaternion.Euler(-7f * f * back, 0f, -5f * f * flinchSide) * Body.Root.localRotation;
         }
 
         void DeathAnim(float dt)
         {
             float t = Time.time - deathTime;
-            // Topple sideways, then sink into the ground.
-            Body.Root.localRotation = Quaternion.Slerp(Body.Root.localRotation, Quaternion.Euler(0f, 0f, 88f), dt * 5f);
-            Body.Root.localPosition = Vector3.Lerp(Body.Root.localPosition, new Vector3(0f, Body.Radius * 0.6f, 0f), dt * 5f);
+            if (!Body.Biped)
+            {
+                // Animals: topple sideways, then sink into the ground.
+                Body.Root.localRotation = Quaternion.Slerp(Body.Root.localRotation, Quaternion.Euler(0f, 0f, 88f), dt * 5f);
+                Body.Root.localPosition = Vector3.Lerp(Body.Root.localPosition, new Vector3(0f, Body.Radius * 0.6f, 0f), dt * 5f);
+            }
+            else if (Anim == null || !Anim.DriveDeath(dt, this))
+            {
+                // People: knees give way first, then the body falls the way the last blow pushed it,
+                // speeding up like a real fall, with a small bounce on landing.
+                float buckle = Mathf.Clamp01(t / 0.18f);
+                float fall = Mathf.Clamp01((t - 0.12f) / 0.55f);
+                float a = fall * fall;
+                if (fall >= 1f) a = 1f + Mathf.Sin((t - 0.67f) * 14f) * 0.045f * Mathf.Exp(-(t - 0.67f) * 7f);
+                Vector3 axis = Vector3.Cross(Vector3.up, deathDirLocal);
+                if (axis.sqrMagnitude < 0.01f) axis = Vector3.right;
+                Body.Root.localRotation = Quaternion.AngleAxis(86f * a, axis.normalized);
+                Body.Root.localPosition = new Vector3(0f, -0.22f * buckle * (1f - a) + Body.Radius * 0.45f * a, 0f);
+                for (int i = 0; i < Body.Legs.Count && i < 2; i++)
+                {
+                    Body.Pose(Body.Legs[i], new Vector3(-35f * buckle * (1f - a * 0.6f), 0f, 0f));
+                    Body.Pose(i == 0 ? Body.ShinL : Body.ShinR, new Vector3(70f * buckle * (1f - a * 0.5f), 0f, 0f));
+                }
+                Body.Pose(Body.ArmL, new Vector3(-30f * a, 0f, -45f * a));
+                Body.Pose(Body.ArmR, new Vector3(-20f * a, 0f, 50f * a));
+                Body.Pose(Body.Neck, new Vector3(25f * a, 0f, 0f));
+            }
             if (t > 12f && !Respawns)
             {
                 Body.Root.localPosition += Vector3.down * dt * 0.5f;
@@ -685,6 +855,10 @@ namespace Neanderthal
             Health.Revive();
             knock = Vector3.zero;
             windup = -1f;
+            flinchT = 9f;
+            staggerT = 0f;
+            hitStop = 0f;
+            Anim?.Revive();
             Home = pos;
             SetState(State.Chase);
         }
