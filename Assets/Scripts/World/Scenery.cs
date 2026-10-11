@@ -20,9 +20,9 @@ namespace Neanderthal
         {
             switch (name)
             {
-                case "sky_forest": info = new SkyInfo { SunYaw = 124.2f, SunElevation = 47.9f, Exposure = 1.8f, Horizon = new Color(0.44f, 0.473f, 0.574f), Zenith = new Color(0.505f, 0.548f, 0.699f) }; return true;
-                case "sky_canyon": info = new SkyInfo { SunYaw = 126.1f, SunElevation = 43f, Exposure = 2.0f, Horizon = new Color(0.636f, 0.699f, 0.791f), Zenith = new Color(0.127f, 0.187f, 0.312f) }; return true;
-                case "sky_valley": info = new SkyInfo { SunYaw = 126.1f, SunElevation = 43f, Exposure = 2.4f, Horizon = new Color(0.47f, 0.504f, 0.449f), Zenith = new Color(0.121f, 0.166f, 0.209f) }; return true;
+                case "sky_forest": info = new SkyInfo { SunYaw = 124.2f, SunElevation = 47.9f, Exposure = 1.5f, Horizon = new Color(0.44f, 0.473f, 0.574f), Zenith = new Color(0.505f, 0.548f, 0.699f) }; return true;
+                case "sky_canyon": info = new SkyInfo { SunYaw = 126.1f, SunElevation = 43f, Exposure = 1.6f, Horizon = new Color(0.636f, 0.699f, 0.791f), Zenith = new Color(0.127f, 0.187f, 0.312f) }; return true;
+                case "sky_valley": info = new SkyInfo { SunYaw = 126.1f, SunElevation = 43f, Exposure = 1.9f, Horizon = new Color(0.47f, 0.504f, 0.449f), Zenith = new Color(0.121f, 0.166f, 0.209f) }; return true;
             }
             info = default;
             return false;
@@ -36,15 +36,15 @@ namespace Neanderthal
             var l = go.AddComponent<Light>();
             l.type = LightType.Directional;
             l.color = sun;
-            l.intensity = sunIntensity * 1.35f;
+            l.intensity = sunIntensity * 1.15f;
             l.shadows = LightShadows.Soft;
             l.shadowStrength = 0.85f;
             RenderSettings.sun = l;
 
             RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
-            RenderSettings.ambientSkyColor = sky * 1.3f;
-            RenderSettings.ambientEquatorColor = equator * 1.3f;
-            RenderSettings.ambientGroundColor = ground * 1.2f;
+            RenderSettings.ambientSkyColor = sky * 1.05f;
+            RenderSettings.ambientEquatorColor = equator * 1.05f;
+            RenderSettings.ambientGroundColor = ground;
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.ExponentialSquared;
             RenderSettings.fogColor = fog;
@@ -76,10 +76,10 @@ namespace Neanderthal
                 RenderSettings.skybox = skyMat;
                 go.transform.rotation = Quaternion.Euler(Mathf.Clamp(info.SunElevation, 30f, 58f), sunEuler.y, 0f);
                 // Ambient follows the sky colours (the sun itself is left to the directional light).
-                Color zen = (info.Zenith * info.Exposure * 0.55f).gamma, hor = (info.Horizon * info.Exposure * 0.55f).gamma;
-                RenderSettings.ambientSkyColor = Color.Lerp(sky * 1.3f, zen, 0.5f);
-                RenderSettings.ambientEquatorColor = Color.Lerp(equator * 1.3f, hor, 0.45f);
-                RenderSettings.fogColor = Color.Lerp(fog, (info.Horizon * info.Exposure * 0.8f).gamma, 0.65f);
+                Color zen = (info.Zenith * info.Exposure * 0.35f).gamma, hor = (info.Horizon * info.Exposure * 0.35f).gamma;
+                RenderSettings.ambientSkyColor = Color.Lerp(sky, zen, 0.4f);
+                RenderSettings.ambientEquatorColor = Color.Lerp(equator, hor, 0.35f);
+                RenderSettings.fogColor = Color.Lerp(fog, (info.Horizon * info.Exposure * 0.6f).gamma, 0.5f);
             }
             DynamicGI.UpdateEnvironment();
             ReflectionProbeFor(parent);

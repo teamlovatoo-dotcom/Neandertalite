@@ -37,7 +37,7 @@ namespace Neanderthal.Rendering
         }
 
         /// <param name="tint">Overall colour filter of the level (warm canyon, cool valley...).</param>
-        public static void CreateVolume(Transform parent, Color tint, float exposure = 0.45f, float bloom = 1.1f)
+        public static void CreateVolume(Transform parent, Color tint, float exposure = 0.15f, float bloom = 0.8f)
         {
 #if NEANDERTHAL_URP
             if (!UrpActive) return;
@@ -54,12 +54,12 @@ namespace Neanderthal.Rendering
 
             var color = profile.Add<ColorAdjustments>(true);
             color.postExposure.Override(exposure);
-            color.contrast.Override(18f);
-            color.saturation.Override(14f);
+            color.contrast.Override(20f);
+            color.saturation.Override(10f);
             color.colorFilter.Override(tint);
 
             var b = profile.Add<Bloom>(true);
-            b.threshold.Override(1.05f);
+            b.threshold.Override(1.15f);
             b.intensity.Override(bloom);
             b.scatter.Override(0.65f);
 
