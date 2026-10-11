@@ -23,7 +23,11 @@ namespace Neanderthal.Rendering.EditorTools
             {
                 if (EditorApplication.isPlayingOrWillChangePlaymode) return;
                 if (GraphicsSettings.defaultRenderPipeline == null) Setup();
-                else EnsureAmbientOcclusion();
+                else
+                {
+                    EnsureAmbientOcclusion();
+                    EnsureShadowAtlas();
+                }
             };
         }
 
@@ -56,7 +60,7 @@ namespace Neanderthal.Rendering.EditorTools
             Set(so, "m_MainLightShadowsSupported", true);
             Set(so, "m_MainLightShadowmapResolution", 4096);
             Set(so, "m_AdditionalLightShadowsSupported", true);
-            Set(so, "m_AdditionalLightsShadowmapResolution", 2048);
+            Set(so, "m_AdditionalLightsShadowmapResolution", 4096);
             Set(so, "m_ShadowDistance", 140f);
             Set(so, "m_ShadowCascadeCount", 4);
             Set(so, "m_SoftShadowsSupported", true);
@@ -77,6 +81,20 @@ namespace Neanderthal.Rendering.EditorTools
             AssetDatabase.SaveAssets();
             Debug.Log("Neanderthal: URP (HD) is now the active render pipeline.");
             EnsureAmbientOcclusion();
+        }
+
+        /// <summary>Room in the shadow atlas for several campfires / torches casting shadows at once.</summary>
+        static void EnsureShadowAtlas()
+        {
+            var pipeline = AssetDatabase.LoadAssetAtPath<UniversalRenderPipelineAsset>(PipelinePath);
+            if (pipeline == null) return;
+            var so = new SerializedObject(pipeline);
+            var p = so.FindProperty("m_AdditionalLightsShadowmapResolution");
+            if (p == null || p.intValue >= 4096) return;
+            p.intValue = 4096;
+            so.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(pipeline);
+            AssetDatabase.SaveAssets();
         }
 
         /// <summary>Adds Screen Space Ambient Occlusion (contact shadows in grass, under rocks, inside huts) once.</summary>

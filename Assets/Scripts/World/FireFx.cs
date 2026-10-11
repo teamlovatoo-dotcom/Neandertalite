@@ -42,7 +42,8 @@ namespace Neanderthal
             if (m.HasProperty("_TintColor")) m.SetColor("_TintColor", new Color(tint.r * 0.5f, tint.g * 0.5f, tint.b * 0.5f, 0.5f));
             if (m.HasProperty("_Surface")) m.SetFloat("_Surface", 1f);
             if (m.HasProperty("_Blend")) m.SetFloat("_Blend", add ? 2f : 0f);
-            if (m.HasProperty("_SrcBlend")) m.SetInt("_SrcBlend", (int)(add ? UnityEngine.Rendering.BlendMode.One : UnityEngine.Rendering.BlendMode.SrcAlpha));
+            // Additive still weighs by alpha (SrcAlpha, One): soft sprites fade out instead of drawing as squares.
+            if (m.HasProperty("_SrcBlend")) m.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
             if (m.HasProperty("_DstBlend")) m.SetInt("_DstBlend", (int)(add ? UnityEngine.Rendering.BlendMode.One : UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha));
             if (m.HasProperty("_ZWrite")) m.SetInt("_ZWrite", 0);
             m.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
@@ -69,7 +70,7 @@ namespace Neanderthal
             {
                 if (flameMat != null) return flameMat;
                 var tex = FireSheet;
-                flameMat = tex != null ? MakeMat("FxFlame", tex, true, new Color(1.9f, 1.75f, 1.6f)) : ParticleMat(true);
+                flameMat = tex != null ? MakeMat("FxFlame", tex, true, new Color(2.2f, 2f, 1.8f)) : ParticleMat(true);
                 return flameMat;
             }
         }
