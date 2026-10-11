@@ -63,6 +63,7 @@ namespace Neanderthal
             GameEvents.ClearAll();
             Creature.All.Clear();
             WaterZones.Clear();
+            NavBaker.Clear();
             if (LevelRoot != null) Destroy(LevelRoot.gameObject);
             LevelRoot = new GameObject("Level").transform;
             ActiveMode = null;

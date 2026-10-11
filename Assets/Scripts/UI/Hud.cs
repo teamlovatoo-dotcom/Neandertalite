@@ -114,6 +114,7 @@ namespace Neanderthal
 
             if (p.Health.IsDead) return;
 
+            DrawNameTags(p);
             DrawOverheadBars(p);
             DrawDamagePops(p);
             DrawTrajectory(p);
@@ -215,6 +216,36 @@ namespace Neanderthal
             }
         }
 
+        /// <summary>Red marker and nickname over every opponent you can actually see (not through walls or waterfalls).</summary>
+        static void DrawNameTags(PlayerController p)
+        {
+            Vector3 eye = p.Cam.transform.position;
+            foreach (var c in Creature.All)
+            {
+                if (c == null || c.IsDead || string.IsNullOrEmpty(c.DisplayName)) continue;
+                Vector3 head = c.transform.position + Vector3.up * 2.05f;
+                float dist = Vector3.Distance(eye, head);
+                if (dist > 120f) continue;
+                Vector3 chest = c.transform.position + Vector3.up * 1.3f;
+                if (SightBlocker.Blocks(eye, chest)) continue;
+                if (PhysicsUtil.Raycast(eye, (chest - eye).normalized, dist, p.transform, out var hit) && !hit.transform.IsChildOf(c.transform)) continue;
+                var g = ToGui(p, head);
+                if (!g.HasValue) continue;
+                float k = Mathf.Clamp01(1.3f - dist / 120f);
+                float size = Mathf.Lerp(14f, 24f, k);
+                Color red = new Color(0.95f, 0.18f, 0.12f, 0.95f);
+                var m = GUI.matrix;
+                GUIUtility.RotateAroundPivot(180f, new Vector2(g.Value.x, g.Value.y - size * 0.5f) * UIStyle.Scale);
+                UIStyle.Icon(new Rect(g.Value.x - size * 0.5f, g.Value.y - size, size, size * 0.8f), UIStyle.Triangle, red);
+                GUI.matrix = m;
+                UIStyle.Shadowed(new Rect(g.Value.x - 120, g.Value.y - size - 34, 240, 22), c.DisplayName, Mathf.RoundToInt(Mathf.Lerp(13f, 17f, k)), new Color(1f, 1f, 1f, 0.95f), TextAnchor.MiddleCenter, true);
+                float bw = Mathf.Lerp(46f, 76f, k);
+                Rect bar = new Rect(g.Value.x - bw * 0.5f, g.Value.y - size - 10, bw, 5);
+                UIStyle.Rect(new Rect(bar.x - 1, bar.y - 1, bar.width + 2, bar.height + 2), new Color(0f, 0f, 0f, 0.6f));
+                UIStyle.Rect(new Rect(bar.x, bar.y, bar.width * c.Health.Fraction, bar.height), red);
+            }
+        }
+
         /// <summary>Small health bars over opponents you hit in the last few seconds.</summary>
         static void DrawOverheadBars(PlayerController p)
         {
@@ -223,9 +254,11 @@ namespace Neanderthal
             {
                 var h = kv.Key;
                 if (h == null || h.IsDead || Time.unscaledTime - kv.Value > 4f) { dead.Add(h); continue; }
+                var named = h.GetComponent<Creature>();
+                if (named != null && !string.IsNullOrEmpty(named.DisplayName)) continue;   // name tag already shows health
                 float dist = Vector3.Distance(h.transform.position, p.transform.position);
                 if (dist > 70f) continue;
-                var g = ToGui(p, h.transform.position + Vector3.up * 2.15f);
+                var g = ToGui(p, h.transform.position + Vector3.up * 2.35f);
                 if (!g.HasValue) continue;
                 float a = Mathf.Clamp01(4f - (Time.unscaledTime - kv.Value));
                 float w = Mathf.Lerp(70f, 40f, dist / 70f);

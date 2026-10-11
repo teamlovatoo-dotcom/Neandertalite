@@ -242,6 +242,7 @@ namespace Neanderthal
             if (dist > SightRange) return false;
             // Forward-ish field of view unless very close.
             if (dist > 6f && Vector3.Angle(transform.forward, d) > 110f) return false;
+            if (SightBlocker.Blocks(eye, tp)) return false;
             if (PhysicsUtil.Raycast(eye, d / dist, dist, transform, out var hit))
                 return hit.transform.IsChildOf(Target.transform);
             return true;
@@ -462,6 +463,35 @@ namespace Neanderthal
             transform.rotation = Quaternion.RotateTowards(transform.rotation, target, TurnSpeed * dt);
         }
 
+        readonly UnityEngine.AI.NavMeshPath navPath = new UnityEngine.AI.NavMeshPath();
+        Vector3[] navCorners;
+        int navCorner;
+        float navRepath;
+        Vector3 navDest;
+
+        /// <summary>With a baked NavMesh, the next corner of the path to dest (tunnels, mazes); otherwise dest itself.</summary>
+        Vector3 NavSteer(Vector3 dest, float dt)
+        {
+            if (!NavBaker.Ready) return dest;
+            navRepath -= dt;
+            if (navRepath <= 0f || (dest - navDest).sqrMagnitude > 4f)
+            {
+                navRepath = 0.6f + Random.value * 0.3f;
+                navDest = dest;
+                navCorners = NavBaker.Path(transform.position, dest, navPath) ? navPath.corners : null;
+                navCorner = 1;
+            }
+            if (navCorners == null) return dest;
+            while (navCorner < navCorners.Length - 1)
+            {
+                Vector3 c = navCorners[navCorner] - transform.position;
+                c.y = 0f;
+                if (c.sqrMagnitude > 0.8f * 0.8f) break;
+                navCorner++;
+            }
+            return navCorner < navCorners.Length ? navCorners[navCorner] : dest;
+        }
+
         /// <summary>Steer towards a point with simple obstacle avoidance. Returns remaining distance.</summary>
         float MoveTo(Vector3 dest, float speed, float dt, bool face = true)
         {
@@ -473,7 +503,13 @@ namespace Neanderthal
                 currentSpeed = Mathf.MoveTowards(currentSpeed, 0f, dt * 8f);
                 return dist;
             }
-            Vector3 dir = to / dist;
+            if (dist > 3f)
+            {
+                Vector3 steer = NavSteer(dest, dt) - transform.position;
+                steer.y = 0f;
+                if (steer.sqrMagnitude > 0.01f) to = steer;
+            }
+            Vector3 dir = to.normalized;
             Vector3 chosen = Vector3.zero;
             float[] angles = { 0f, 30f, -30f, 60f, -60f, 95f, -95f };
             foreach (float a in angles)

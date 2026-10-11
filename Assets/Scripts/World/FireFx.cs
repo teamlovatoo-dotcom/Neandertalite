@@ -60,6 +60,9 @@ namespace Neanderthal
             return m;
         }
 
+        /// <summary>Soft round alpha-blended sprite material (mist, dust).</summary>
+        public static Material SoftAlphaMaterial => ParticleMat(false);
+
         static Texture2D FireSheet => Resources.Load<Texture2D>("Textures/fx_fire");
         static Texture2D SmokeSheet => Resources.Load<Texture2D>("Textures/fx_smoke");
 

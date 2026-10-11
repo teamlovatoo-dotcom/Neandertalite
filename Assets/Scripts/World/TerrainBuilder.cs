@@ -91,7 +91,7 @@ namespace Neanderthal
         /// Returns null if a texture set is missing so the caller can fall back to <see cref="Build"/>.
         /// </summary>
         public static Terrain BuildTextured(Transform parent, float size, int heightRes, Func<float, float, float> height,
-            TerrainLayer[] layers, WeightFunc weights, int alphaRes = 512)
+            TerrainLayer[] layers, WeightFunc weights, int alphaRes = 512, Func<float, float, bool> hole = null)
         {
             foreach (var l in layers) if (l == null) return null;
             float half = size * 0.5f;
@@ -114,6 +114,16 @@ namespace Neanderthal
             var td = new TerrainData { heightmapResolution = n };
             td.size = new Vector3(size, range, size);
             td.SetHeights(0, 0, hs);
+            if (hole != null)
+            {
+                // Openings (e.g. tunnel mouths into the catacombs): false = no terrain there.
+                int hr = td.holesResolution;
+                var solid = new bool[hr, hr];
+                for (int j = 0; j < hr; j++)
+                for (int i = 0; i < hr; i++)
+                    solid[j, i] = !hole(-half + size * (i + 0.5f) / hr, -half + size * (j + 0.5f) / hr);
+                td.SetHoles(0, 0, solid);
+            }
             td.terrainLayers = layers;
             td.alphamapResolution = alphaRes;
             int L = layers.Length;

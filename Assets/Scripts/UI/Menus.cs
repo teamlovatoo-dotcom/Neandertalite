@@ -3,11 +3,11 @@ using UnityEngine;
 
 namespace Neanderthal
 {
-    public enum ArenaMap { CaveForest, CanyonFortress }
+    public enum ArenaMap { CaveForest, CanyonFortress, Catacombs }
 
     public class ArenaSettings
     {
-        public ArenaMap Map = ArenaMap.CaveForest;
+        public ArenaMap Map = ArenaMap.Catacombs;
         public int Opponents = 1;  // 1 = duel, more = free-for-all deathmatch
         public string Primary = "bow";
         public string Secondary = "spear";
@@ -207,8 +207,9 @@ namespace Neanderthal
             float x = panel.x + 40, y = panel.y + 120;
             UIStyle.Text(new Rect(x, y, 300, 24), UIStyle.Spaced("Карта"), 14, UIStyle.TextDim);
             y += 30;
-            if (UIStyle.Button(new Rect(x, y, 380, 90), "ПЕЧЕРНИЙ ЛІС\n<size=13>ліс, струмок, печерний тунель, мости</size>", Duel.Map == ArenaMap.CaveForest, true, 20)) Duel.Map = ArenaMap.CaveForest;
-            if (UIStyle.Button(new Rect(x + 400, y, 380, 90), "ФОРТЕЦЯ В КАНЬЙОНІ\n<size=13>кам'яна фортеця, пандуси, тунелі</size>", Duel.Map == ArenaMap.CanyonFortress, true, 20)) Duel.Map = ArenaMap.CanyonFortress;
+            if (UIStyle.Button(new Rect(x, y, 380, 90), "ПІДЗЕМЕЛЛЯ\n<size=13>велика долина, водоспад, катакомби й лабіринт</size>", Duel.Map == ArenaMap.Catacombs, true, 20)) Duel.Map = ArenaMap.Catacombs;
+            if (UIStyle.Button(new Rect(x + 400, y, 380, 90), "ПЕЧЕРНИЙ ЛІС\n<size=13>ліс, струмок, печерний тунель, мости</size>", Duel.Map == ArenaMap.CaveForest, true, 20)) Duel.Map = ArenaMap.CaveForest;
+            if (UIStyle.Button(new Rect(x + 800, y, 380, 90), "ФОРТЕЦЯ В КАНЬЙОНІ\n<size=13>кам'яна фортеця, пандуси, тунелі</size>", Duel.Map == ArenaMap.CanyonFortress, true, 20)) Duel.Map = ArenaMap.CanyonFortress;
 
             y += 120;
             Duel.Primary = Choice(ref y, x, "Основна", Primaries, Duel.Primary);

@@ -23,6 +23,7 @@ namespace Neanderthal
     {
         public static ArenaLayout Build(ArenaMap map, Transform root)
         {
+            if (map == ArenaMap.Catacombs) return CatacombsLevel.Build(root);
             return map == ArenaMap.CanyonFortress ? CanyonFortress(root) : CaveForest(root);
         }
 
@@ -345,7 +346,7 @@ namespace Neanderthal
         }
 
         // ------------------------------------------------------------------ helpers
-        static float Slope(System.Func<float, float, float> h, float x, float z)
+        internal static float Slope(System.Func<float, float, float> h, float x, float z)
         {
             float c = h(x, z);
             return Mathf.Abs(h(x + 1f, z) - c) + Mathf.Abs(h(x, z + 1f) - c);
@@ -378,7 +379,7 @@ namespace Neanderthal
             Shapes.Cyl(root, pos + Vector3.up * 0.05f, new Vector3(1.0f, 0.02f, 1.0f), Mat.Emissive(new Color(0.9f, 0.6f, 0.25f), 1.2f), null, false);
         }
 
-        static void Boundary(Transform root, float r)
+        internal static void Boundary(Transform root, float r)
         {
             for (int i = 0; i < 4; i++)
             {

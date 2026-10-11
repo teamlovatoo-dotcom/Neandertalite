@@ -46,6 +46,7 @@ namespace Neanderthal
         {
             settings = s;
             layout = ArenaLevels.Build(s.Map, transform);
+            NavBaker.Bake(new Bounds(Vector3.zero, new Vector3(320f, 120f, 320f)));
             var spawn = layout.Spawns[0];
             player = PlayerController.Spawn(transform, spawn.Position, spawn.Yaw);
             me = new Combatant { Name = "Ти", Color = Mat.TeamBlue, Health = player.Health };

@@ -60,6 +60,7 @@ namespace Neanderthal
         public void Begin()
         {
             level = ValleyLevel.Build(transform, true);
+            NavBaker.Bake(new Bounds(Vector3.zero, new Vector3(300f, 120f, 300f)));
             player = PlayerController.Spawn(transform, level.PlayerStart + Vector3.up * 0.3f, 0f);
             GameManager.Instance.SetRespawn(level.PlayerStart + Vector3.up * 0.3f);
             player.Health.Died += OnPlayerDied;
