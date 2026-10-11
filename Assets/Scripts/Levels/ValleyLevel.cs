@@ -108,6 +108,16 @@ namespace Neanderthal
             BuildCamp(L, root, rnd);
             BuildCave(L, root);
             ScatterNature(L, root, rnd);
+            GrassField.Create(root, new Rect(-132, -132, 264, 236), 0.55f, Height, (x, z) =>
+            {
+                if (InCaveNotch(x, z) || x < -88f) return 0f;
+                if (Mathf.Abs(x - RiverX(z)) < 9.5f) return 0f;
+                if (Vector2.Distance(new Vector2(x, z), new Vector2(-10f, 40f)) < 15f) return 0f;
+                if (Mathf.Abs(x - Mathf.Sin(z / 25f) * 6f) < 2.2f && z < 130f) return 0.1f;
+                float h = Height(x, z);
+                if (Mathf.Abs(Height(x + 1f, z) - h) + Mathf.Abs(Height(x, z + 1f) - h) > 0.5f) return 0f;
+                return Mathf.Clamp01((Mat.Fbm(x * 0.06f + 2f, z * 0.06f, 2) - 0.2f) * 2f);
+            }, new[] { new Color(0.24f, 0.31f, 0.12f), new Color(0.32f, 0.36f, 0.15f), new Color(0.2f, 0.27f, 0.1f) }, 13);
 
             // A fallen-log bridge.
             float bz = -15f;

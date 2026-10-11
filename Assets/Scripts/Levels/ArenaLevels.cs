@@ -59,9 +59,18 @@ namespace Neanderthal
                 float path = Smooth(3f, 1f, Mathf.Abs(new Vector2(x, z).magnitude - 30f));
                 float sand = Smooth(6f, 3.5f, Mathf.Abs(z - StreamZ(x)));
                 return TerrainBuilder.NaturalGround(x, z, h, s, path, sand);
-            }, 512);
+            }, 2048);
             Scenery.WaterPlane(root, new Vector3(0f, -1.1f, -12f), new Vector2(120f, 40f));
             Boundary(root, 49f);
+            GrassField.Create(root, new Rect(-48, -48, 96, 96), 1.6f, ForestHeight, (x, z) =>
+            {
+                if (Mathf.Abs(z - StreamZ(x)) < 4.5f) return 0f;
+                if (Vector2.Distance(new Vector2(x, z), new Vector2(26f, -14f)) < 9.5f) return 0f;
+                if (Mathf.Abs(z - 14f) < 6.5f && Mathf.Abs(x) < 22f) return 0f;
+                if (Slope(ForestHeight, x, z) > 0.55f) return 0f;
+                float path = Mathf.Abs(new Vector2(x, z).magnitude - 30f) < 1.6f ? 0.15f : 1f;
+                return path * Mathf.Clamp01((Mat.Fbm(x * 0.09f + 7f, z * 0.09f, 2) - 0.25f) * 2.2f);
+            }, new[] { new Color(0.22f, 0.32f, 0.11f), new Color(0.3f, 0.37f, 0.13f), new Color(0.17f, 0.26f, 0.09f) }, 11);
 
             // Cave tunnel through the hill: walls + roof, rock on top.
             var rock = Scenery.RockMat;
@@ -157,8 +166,14 @@ namespace Neanderthal
                 Color sand = Color.Lerp(new Color(0.62f, 0.47f, 0.33f), new Color(0.52f, 0.38f, 0.26f), n);
                 Color rock = Color.Lerp(new Color(0.6f, 0.32f, 0.2f), new Color(0.42f, 0.22f, 0.14f), n);
                 return Color.Lerp(sand, rock, Mathf.Clamp01((s - 0.3f) * 2f + h / 25f));
-            }, 512);
+            }, 2048);
             Boundary(root, 50f);
+            GrassField.Create(root, new Rect(-48, -48, 96, 96), 0.9f, CanyonHeight, (x, z) =>
+            {
+                float edge = Mathf.Max(Mathf.Abs(x), Mathf.Abs(z));
+                if (edge < 26f || edge > 46f) return 0f;
+                return 0.6f * Mathf.Clamp01((Mat.Fbm(x * 0.12f, z * 0.12f + 3f, 2) - 0.35f) * 3f);
+            }, new[] { new Color(0.56f, 0.46f, 0.26f), new Color(0.47f, 0.38f, 0.2f), new Color(0.62f, 0.52f, 0.31f) }, 12, 0.8f);
 
             // Red rock spires outside the fortress
             var rnd = new System.Random(7);
@@ -249,6 +264,12 @@ namespace Neanderthal
         }
 
         // ------------------------------------------------------------------ helpers
+        static float Slope(System.Func<float, float, float> h, float x, float z)
+        {
+            float c = h(x, z);
+            return Mathf.Abs(h(x + 1f, z) - c) + Mathf.Abs(h(x, z + 1f) - c);
+        }
+
         static SpawnPoint Spawn(System.Func<float, float, float> h, float x, float z, float yaw)
             => new SpawnPoint(new Vector3(x, h(x, z) + 0.2f, z), yaw);
 
