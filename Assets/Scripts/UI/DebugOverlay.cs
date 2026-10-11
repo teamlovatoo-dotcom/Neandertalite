@@ -44,17 +44,6 @@ namespace Neanderthal
             }
         }
 
-        /// <summary>Line of sight between two points, ignoring both bodies (true = a wall/rock is in the way).</summary>
-        public static bool Blocked(Vector3 from, Vector3 to, Transform a, Transform b)
-        {
-            Vector3 d = to - from;
-            float dist = d.magnitude;
-            if (dist < 0.05f) return false;
-            if (SightBlocker.Blocks(from, to)) return true;
-            if (!PhysicsUtil.Raycast(from, d / dist, dist, a, out var hit)) return false;
-            return b == null || !hit.transform.IsChildOf(b);
-        }
-
         static void OnDamaged(Health h, DamageInfo info)
         {
             if (!Visible) return;
@@ -64,7 +53,7 @@ namespace Neanderthal
             float dist = info.Attacker != null && h != null ? Vector3.Distance(info.Attacker.transform.position, h.transform.position) : 0f;
             bool wall = false;
             if (info.Attacker != null && h != null)
-                wall = Blocked(info.Attacker.transform.position + Vector3.up * 1.5f, h.transform.position + Vector3.up * 1.2f, info.Attacker.transform, h.transform);
+                wall = PhysicsUtil.LineBlocked(info.Attacker.transform.position + Vector3.up * 1.5f, h.transform.position + Vector3.up * 1.2f, info.Attacker.transform, h.transform);
             string zone = Hitbox.ZoneName(info.Zone);
             string text = $"{attacker} → {victim}: {info.Amount:0} ({zone}{(string.IsNullOrEmpty(info.WeaponId) ? "" : ", " + info.WeaponId)}) {dist:0.0} м{(wall ? "  ⚠ КРІЗЬ ПЕРЕШКОДУ" : "")}";
             Color c = wall ? UIStyle.Bad : h == (p != null ? p.Health : null) ? new Color(1f, 0.75f, 0.6f) : Color.white;

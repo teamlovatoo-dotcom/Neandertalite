@@ -410,25 +410,46 @@ namespace Neanderthal
 
             if (Target == null || Target.IsDead) return;
             if (rangedWindup) FireProjectile();
-            else if (dist < AttackRange * 1.35f)
-            {
-                Vector3 dir = (Target.transform.position - transform.position).normalized;
-                Target.TakeDamage(new DamageInfo
-                {
-                    Amount = AttackDamage,
-                    Point = Target.transform.position + Vector3.up,
-                    Direction = dir,
-                    Attacker = gameObject,
-                    Knockback = Knockback
-                });
-                Sfx.Play("hit", Target.transform.position + Vector3.up, 0.8f, 0.8f);
-            }
-            else Sfx.Play("swing", transform.position + Vector3.up, 0.5f);
+            else if (!MeleeConnects(dist)) Sfx.Play("swing", transform.position + Vector3.up, 0.5f);
         }
+
+        /// <summary>
+        /// The melee blow lands only if the target is still in reach, roughly in front of us and not behind a wall,
+        /// rock or waterfall. The hit point is found with a cast towards the target, so body parts (head, limbs)
+        /// count for bots too.
+        /// </summary>
+        bool MeleeConnects(float dist)
+        {
+            if (dist > AttackRange * 1.35f) return false;
+            Vector3 flat = Target.transform.position - transform.position;
+            flat.y = 0f;
+            float maxAngle = Type == CreatureType.Mammoth || Type == CreatureType.Bear ? 85f : 65f;
+            if (flat.sqrMagnitude > 0.04f && Vector3.Angle(transform.forward, flat) > maxAngle) return false;
+
+            Vector3 from = transform.position + Vector3.up * Mathf.Clamp(Body.EyeHeight - 0.25f, 0.4f, 3f);
+            Vector3 aimAt = Target.transform.position + Vector3.up * 1.25f;
+            if (PhysicsUtil.LineBlocked(from, aimAt, transform, Target.transform)) return false;
+
+            Vector3 dir = (aimAt - from).normalized;
+            float reach = Vector3.Distance(from, aimAt) + 0.6f;
+            if (PhysicsUtil.SphereCast(from, 0.25f, dir, reach, transform, out var hit) && hit.transform.IsChildOf(Target.transform))
+                Health.Apply(hit, AttackDamage, dir, gameObject, Knockback, MeleeWeaponId);
+            else
+                Target.TakeDamage(new DamageInfo { Amount = AttackDamage, Point = aimAt, Direction = dir, Attacker = gameObject, Knockback = Knockback, WeaponId = MeleeWeaponId });
+            Sfx.Play("hit", aimAt, 0.8f, 0.8f);
+            return true;
+        }
+
+        /// <summary>Weapon id for the kill feed and hit log (animals bite).</summary>
+        string MeleeWeaponId => Body != null && Body.Biped ? MeleeWeapon : null;
 
         void FireProjectile()
         {
-            Vector3 from = transform.position + Vector3.up * (Body.EyeHeight - 0.1f) + transform.forward * 0.6f;
+            Vector3 chest = transform.position + Vector3.up * (Body.EyeHeight - 0.1f);
+            Vector3 from = chest + transform.forward * 0.6f;
+            // Standing against a wall: release in front of it, not on its far side.
+            if (PhysicsUtil.Raycast(chest, transform.forward, 0.65f, transform, out var wall))
+                from = chest + transform.forward * Mathf.Max(0f, wall.distance - 0.08f);
             Vector3 tp = Target.transform.position + Vector3.up * 1.1f;
             // Lead the target and compensate for drop.
             var pc = Target.GetComponent<PlayerController>();

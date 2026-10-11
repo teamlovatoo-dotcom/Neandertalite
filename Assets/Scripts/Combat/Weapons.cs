@@ -114,29 +114,99 @@ namespace Neanderthal
             flyDir = (aimPoint - pos).sqrMagnitude > 0.0001f ? (aimPoint - pos).normalized : dir;
         }
 
-        /// <summary>Shared melee hit: sphere-cast from the eye; damages creatures, harvests trees/rocks.</summary>
-        protected void MeleeStrike(float damage, float range, float knockback)
+        /// <summary>Swung weapons (club, axes, stick, torch) sweep an arc; stabbing ones (knife, spear, fists) hit a line.</summary>
+        protected virtual float StrikeArc
+        {
+            get
+            {
+                switch (Data.Id)
+                {
+                    case "club": case "axe": case "obsidian_axe": case "stick": case "torch": return 16f;
+                    default: return 0f;
+                }
+            }
+        }
+
+        static readonly float[] arcSteps = { 0f, -1f, 1f, -0.5f, 0.5f };
+
+        /// <summary>
+        /// Shared melee hit. 1) Sweep sphere-casts from the eye (centre ray, plus side rays for wide swings) and take
+        /// the nearest body. 2) If none, check a short sphere right in front of the face: an enemy pressed against you
+        /// is inside the cast's start and casts never report that. 3) Otherwise it is a hit on the world.
+        /// Returns the body that was hit (or null).
+        /// </summary>
+        protected Health MeleeStrike(float damage, float range, float knockback)
         {
             var root = Player.transform;
-            if (PhysicsUtil.SphereCast(EyePos, 0.22f, Aim, range, root, out var hit))
+            Vector3 eye = EyePos;
+            Vector3 up = Player.Cam.transform.up;
+            float arc = StrikeArc;
+
+            RaycastHit body = default, world = default;
+            bool gotBody = false, gotWorld = false;
+            int rays = arc > 0f ? arcSteps.Length : 1;
+            for (int i = 0; i < rays; i++)
             {
-                if (Health.Apply(hit, damage, Aim, Player.gameObject, knockback, Data.Id))
+                Vector3 dir = Quaternion.AngleAxis(arcSteps[i] * arc, up) * Aim;
+                if (!PhysicsUtil.SphereCast(eye, 0.22f, dir, range, root, out var hit)) continue;
+                if (Health.FromCollider(hit.collider, out _, out _) != null)
                 {
-                    Sfx.Play("hit", hit.point);
-                    Effects.Blood(hit.point, -Aim);
-                    Player.Shake(0.15f);
-                    return;
+                    if (!gotBody || hit.distance < body.distance) { body = hit; gotBody = true; }
                 }
-                var harvest = hit.collider.GetComponentInParent<Harvestable>();
+                else if (i == 0) { world = hit; gotWorld = true; }
+            }
+
+            if (gotBody && (!gotWorld || body.distance <= world.distance + 0.3f))
+            {
+                if (Health.Apply(body, damage, Aim, Player.gameObject, knockback, Data.Id))
+                {
+                    OnBodyHit(body.point);
+                    return Health.FromCollider(body.collider, out _, out _);
+                }
+            }
+
+            // Point-blank: something with health overlapping the space right in front of the face.
+            int n = PhysicsUtil.Overlap(eye + Aim * 0.45f, 0.45f, out var cols);
+            Collider best = null;
+            Vector3 bestPoint = Vector3.zero;
+            float bestAngle = 65f;
+            for (int i = 0; i < n; i++)
+            {
+                var c = cols[i];
+                if (c.transform.IsChildOf(root) || Health.FromCollider(c, out _, out _) == null) continue;
+                Vector3 pt = c.ClosestPoint(eye);
+                Vector3 to = pt - eye;
+                float ang = to.sqrMagnitude < 0.0004f ? 0f : Vector3.Angle(Aim, to);
+                if (ang >= bestAngle) continue;
+                if (PhysicsUtil.RaycastStatic(eye, to.normalized, Mathf.Max(0f, to.magnitude - 0.05f), out _)) continue;
+                best = c; bestPoint = pt; bestAngle = ang;
+            }
+            if (best != null && Health.Apply(best, bestPoint, damage, Aim, Player.gameObject, knockback, Data.Id))
+            {
+                OnBodyHit(bestPoint);
+                return Health.FromCollider(best, out _, out _);
+            }
+
+            if (gotWorld)
+            {
+                var harvest = world.collider.GetComponentInParent<Harvestable>();
                 if (harvest != null)
                 {
-                    harvest.Hit(Data.HarvestPower, hit.point, Player.gameObject);
+                    harvest.Hit(Data.HarvestPower, world.point, Player.gameObject);
                     Player.Shake(0.1f);
-                    return;
+                    return null;
                 }
-                Sfx.Play("thunk", hit.point, 0.7f);
-                Effects.Dust(hit.point, hit.normal);
+                Sfx.Play("thunk", world.point, 0.7f);
+                Effects.Dust(world.point, world.normal);
             }
+            return null;
+        }
+
+        protected virtual void OnBodyHit(Vector3 point)
+        {
+            Sfx.Play("hit", point);
+            Effects.Blood(point, -Aim);
+            Player.Shake(0.15f);
         }
     }
 

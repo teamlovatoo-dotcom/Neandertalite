@@ -117,6 +117,25 @@ namespace Neanderthal
             return c.GetComponentInParent<Health>();
         }
 
+        /// <summary>Apply damage to the body a collider belongs to (body-part multiplier included).</summary>
+        public static bool Apply(Collider c, Vector3 point, float amount, Vector3 dir, GameObject attacker, float knockback = 0f, string weaponId = null)
+        {
+            var h = FromCollider(c, out float mult, out bool head, out HitZone zone);
+            if (h == null) return false;
+            h.TakeDamage(new DamageInfo
+            {
+                Amount = amount * mult,
+                Point = point,
+                Direction = dir,
+                Attacker = attacker,
+                Headshot = head,
+                Zone = zone,
+                Knockback = knockback,
+                WeaponId = weaponId
+            });
+            return true;
+        }
+
         /// <summary>Convenience: apply damage to whatever a raycast hit.</summary>
         public static bool Apply(RaycastHit hit, float amount, Vector3 dir, GameObject attacker, float knockback = 0f, string weaponId = null)
         {

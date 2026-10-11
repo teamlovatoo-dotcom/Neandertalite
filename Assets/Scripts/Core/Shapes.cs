@@ -210,6 +210,29 @@ namespace Neanderthal
             return Closest(n, ignoreRoot, out best);
         }
 
+        static readonly Collider[] overlaps = new Collider[32];
+
+        /// <summary>Colliders touching a sphere (no triggers). The returned array is shared: copy what you need.</summary>
+        public static int Overlap(Vector3 center, float radius, out Collider[] result)
+        {
+            result = overlaps;
+            return Physics.OverlapSphereNonAlloc(center, radius, overlaps, ~0, QueryTriggerInteraction.Ignore);
+        }
+
+        /// <summary>
+        /// True when a wall, rock or waterfall is between two points. Bodies under <paramref name="ignore"/> are skipped
+        /// and anything belonging to <paramref name="target"/> counts as "not blocked".
+        /// </summary>
+        public static bool LineBlocked(Vector3 from, Vector3 to, Transform ignore, Transform target)
+        {
+            Vector3 d = to - from;
+            float dist = d.magnitude;
+            if (dist < 0.05f) return false;
+            if (SightBlocker.Blocks(from, to)) return true;
+            if (!Raycast(from, d / dist, dist, ignore, out var hit)) return false;
+            return target == null || !hit.transform.IsChildOf(target);
+        }
+
         static bool Closest(int n, Transform ignoreRoot, out RaycastHit best)
         {
             best = default;
