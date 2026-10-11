@@ -71,6 +71,7 @@ namespace Neanderthal
         Vector3 knock;
         float retarget;
         float perceiveTimer;
+        float breathPhase;               // so bots don't breathe in unison
 
         // Hit reactions
         float flinchT = 9f;              // seconds since the last hit
@@ -110,6 +111,7 @@ namespace Neanderthal
             wanderTarget = Home;
             soundTimer = Random.Range(3f, 10f);
             attackTimer = Random.Range(0.5f, 1.5f);
+            breathPhase = Random.Range(0f, 10f);
         }
 
         void OnDamaged(DamageInfo info)
@@ -709,7 +711,7 @@ namespace Neanderthal
                     float knee = 6f + Mathf.Max(0f, Mathf.Cos(ph)) * amp * 1.4f;
                     Body.Pose(i == 0 ? Body.ShinL : Body.ShinR, new Vector3(knee, 0f, 0f));
                 }
-                float breath = Mathf.Sin(Time.time * 1.7f + transform.GetInstanceID()) * 1.5f;
+                float breath = Mathf.Sin(Time.time * 1.7f + breathPhase) * 1.5f;
                 float twist = Mathf.Sin(gaitPhase) * 7f * speedNorm;          // shoulders counter the hips
 
                 if (rangedWindup && windup >= 0f || state == State.Ranged)

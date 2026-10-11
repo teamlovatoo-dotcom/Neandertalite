@@ -157,6 +157,9 @@ namespace Neanderthal
                 r.shadowCastingMode = cast ? UnityEngine.Rendering.ShadowCastingMode.On : UnityEngine.Rendering.ShadowCastingMode.Off;
         }
 
+        /// <summary>Every torch / fire / lamp light made by the game (for the F3 counter; destroyed ones are pruned there).</summary>
+        public static readonly List<Light> Lights = new List<Light>();
+
         public static Light PointLight(Transform parent, Vector3 pos, Color color, float range, float intensity, bool shadows = false)
         {
             var go = new GameObject("Light");
@@ -168,6 +171,7 @@ namespace Neanderthal
             l.range = range;
             l.intensity = intensity;
             l.shadows = shadows ? LightShadows.Soft : LightShadows.None;
+            Lights.Add(l);
             return l;
         }
     }

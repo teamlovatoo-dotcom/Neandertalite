@@ -37,8 +37,15 @@ namespace Neanderthal
             {
                 sampleTimer = 1f;
                 pointLights = spotLights = shadowLights = 0;
-                foreach (var l in Light.GetLights(LightType.Point, 0)) { if (!l.isActiveAndEnabled) continue; pointLights++; if (l.shadows != LightShadows.None) shadowLights++; }
-                foreach (var l in Light.GetLights(LightType.Spot, 0)) { if (!l.isActiveAndEnabled) continue; spotLights++; if (l.shadows != LightShadows.None) shadowLights++; }
+                var all = Shapes.Lights;
+                all.RemoveAll(l => l == null);
+                foreach (var l in all)
+                {
+                    if (!l.isActiveAndEnabled) continue;
+                    if (l.type == LightType.Point) pointLights++;
+                    else if (l.type == LightType.Spot) spotLights++;
+                    if (l.shadows != LightShadows.None) shadowLights++;
+                }
                 creatures = 0;
                 foreach (var c in Creature.All) if (c != null && !c.IsDead) creatures++;
             }

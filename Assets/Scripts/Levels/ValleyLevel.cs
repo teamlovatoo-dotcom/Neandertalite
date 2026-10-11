@@ -250,6 +250,7 @@ namespace Neanderthal
             shaft.transform.position = new Vector3(-126f, 13f, -9f);
             shaft.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
             var spot = shaft.AddComponent<Light>();
+            Shapes.Lights.Add(spot);
             spot.type = LightType.Spot;
             spot.color = new Color(0.55f, 0.75f, 1f);
             spot.range = 22f;
