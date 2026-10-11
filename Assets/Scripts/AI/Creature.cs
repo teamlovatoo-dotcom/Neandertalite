@@ -17,7 +17,7 @@ namespace Neanderthal
 
         public CreatureType Type;
         public Health Health;
-        public CreatureBody Body;
+        [System.NonSerialized] public CreatureBody Body;
         public float WalkSpeed = 1.6f;
         public float RunSpeed = 5f;
         public float TurnSpeed = 360f;
@@ -36,7 +36,7 @@ namespace Neanderthal
         public float Accuracy = 2.5f;    // spread in degrees
         public float LeashRadius = 60f;
         public int CoinReward = 10;
-        public List<(Resource, int)> Loot = new List<(Resource, int)>();
+        [System.NonSerialized] public List<(Resource, int)> Loot = new List<(Resource, int)>();
         public string RangedWeapon = "bow";
         public string MeleeWeapon = "spear";
         public bool Respawns;            // duel bot: handled externally

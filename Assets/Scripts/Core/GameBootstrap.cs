@@ -11,10 +11,9 @@ namespace Neanderthal
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Boot()
         {
-            if (Object.FindFirstObjectByType<GameManager>() != null) return;
-            foreach (var cam in Object.FindObjectsByType<Camera>(FindObjectsSortMode.None)) cam.gameObject.SetActive(false);
-            foreach (var light in Object.FindObjectsByType<Light>(FindObjectsSortMode.None))
-                if (light.type == LightType.Directional) light.gameObject.SetActive(false);
+            if (Object.FindAnyObjectByType<GameManager>() != null) return;
+            foreach (var cam in Camera.allCameras) cam.gameObject.SetActive(false);
+            if (RenderSettings.sun != null) RenderSettings.sun.gameObject.SetActive(false);
             var go = new GameObject("Neanderthal Game");
             Object.DontDestroyOnLoad(go);
             go.AddComponent<GameManager>();

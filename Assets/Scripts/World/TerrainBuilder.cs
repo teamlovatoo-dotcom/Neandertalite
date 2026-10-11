@@ -10,6 +10,8 @@ namespace Neanderthal
     /// </summary>
     public static class TerrainBuilder
     {
+        static int terrainCounter;
+
         public delegate Color ColorFunc(float x, float z, float height, float slope);
 
         public static GameObject Build(Transform parent, float size, int resolution, Func<float, float, float> height, ColorFunc color, int texSize = 1024)
@@ -48,7 +50,7 @@ namespace Neanderthal
             go.AddComponent<MeshFilter>().sharedMesh = mesh;
             var mr = go.AddComponent<MeshRenderer>();
             var tex = BakeTexture(size, texSize, height, color);
-            mr.sharedMaterial = Mat.Textured("terrain_" + go.GetInstanceID(), tex, 0.05f);
+            mr.sharedMaterial = Mat.Textured("terrain_" + (++terrainCounter), tex, 0.05f);
             var owned = go.AddComponent<OwnedAssets>();
             owned.Assets.Add(tex);
             owned.Assets.Add(mesh);

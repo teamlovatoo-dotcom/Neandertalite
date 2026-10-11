@@ -11,7 +11,7 @@ namespace Neanderthal
     {
         public PlayerController Player;
         public Transform ViewRoot;      // child of camera, animated
-        public Weapon Current;
+        [System.NonSerialized] public Weapon Current;
         public string CurrentId => Current?.Data.Id;
 
         // Rounds currently loaded in each weapon's magazine, kept while holstered.
