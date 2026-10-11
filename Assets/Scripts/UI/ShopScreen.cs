@@ -6,7 +6,7 @@ namespace Neanderthal
     /// <summary>The trader's shop: BLUEPRINTS / TOOLS / WEAPONS / GEAR / MISC / SELL, like the concept board.</summary>
     public static class ShopScreen
     {
-        public static string Tab = "BLUEPRINTS";
+        public static string Tab = "КРЕСЛЕННЯ";
         static Vector2 scroll;
 
         /// <param name="menuOnly">From the main menu only blueprints can be bought (no run inventory).</param>
@@ -17,13 +17,13 @@ namespace Neanderthal
             Rect panel = new Rect(W * 0.5f - 640, H * 0.5f - 380, 1280, 760);
             UIStyle.PanelBox(panel);
 
-            UIStyle.Text(new Rect(panel.x + 36, panel.y + 26, 400, 40), UIStyle.Spaced("Shop"), 28, Color.white, TextAnchor.MiddleLeft, true);
-            UIStyle.Text(new Rect(panel.x + 36, panel.y + 64, 600, 24), menuOnly ? "Blueprints are permanent. Craft them at a workbench in Survival, or take them into Duels." : "The Old One trades in strange plans from the tower.", 16, UIStyle.TextDim);
+            UIStyle.Text(new Rect(panel.x + 36, panel.y + 26, 400, 40), UIStyle.Spaced("Магазин"), 28, Color.white, TextAnchor.MiddleLeft, true);
+            UIStyle.Text(new Rect(panel.x + 36, panel.y + 64, 600, 24), menuOnly ? "Креслення купуються назавжди: бери нову зброю в дуелі або створюй її на верстаку в тренуванні." : "Старійшина торгує дивними кресленнями з вежі.", 16, UIStyle.TextDim);
             UIStyle.Text(new Rect(panel.xMax - 336, panel.y + 26, 300, 40), $"<color=#ffd15a>◆</color> {Profile.Current.Coins}", 28, Color.white, TextAnchor.MiddleRight, true);
 
             var player = PlayerController.Instance;
-            string[] tabs = menuOnly ? new[] { "BLUEPRINTS" } : ItemDatabase.ShopTabs;
-            if (menuOnly) Tab = "BLUEPRINTS";
+            string[] tabs = menuOnly ? new[] { "КРЕСЛЕННЯ" } : ItemDatabase.ShopTabs;
+            if (menuOnly) Tab = "КРЕСЛЕННЯ";
             float ty = panel.y + 120;
             foreach (var t in tabs)
             {
@@ -46,8 +46,8 @@ namespace Neanderthal
             }
             GUI.EndScrollView();
 
-            if (UIStyle.Button(new Rect(panel.xMax - 196, panel.yMax - 60, 160, 40), "CLOSE  [Esc]", false, true, 16)) close();
-            UIStyle.Text(new Rect(panel.x + 36, panel.yMax - 56, 700, 30), UIStyle.Spaced("From stone to steel"), 14, UIStyle.TextDim, TextAnchor.MiddleLeft);
+            if (UIStyle.Button(new Rect(panel.xMax - 196, panel.yMax - 60, 160, 40), "ЗАКРИТИ  [Esc]", false, true, 16)) close();
+            UIStyle.Text(new Rect(panel.x + 36, panel.yMax - 56, 700, 30), UIStyle.Spaced("Від каменю до сталі"), 14, UIStyle.TextDim, TextAnchor.MiddleLeft);
         }
 
         static void DrawCard(Rect r, ShopEntry e, PlayerController player)
@@ -63,12 +63,12 @@ namespace Neanderthal
             }
 
             UIStyle.Text(new Rect(r.x + 14, r.y + 10, r.width - 28, 26), e.Name, 19, Color.white, TextAnchor.MiddleLeft, true);
-            string price = e.Kind == ShopKind.SellResource ? $"+{e.Price} each" : e.Price.ToString();
+            string price = e.Kind == ShopKind.SellResource ? $"+{e.Price} за шт." : e.Price.ToString();
             UIStyle.Text(new Rect(r.x + 14, r.y + 36, r.width - 28, 22), $"<color=#ffd15a>◆</color> {price}", 16, UIStyle.TextColor, TextAnchor.MiddleLeft);
 
             string desc = e.Description;
             if (desc == null && e.Kind == ShopKind.Weapon) desc = ItemDatabase.Weapon(e.WeaponId)?.Description;
-            if (e.Kind == ShopKind.SellResource && player != null) desc = $"You have {player.Inventory.Get(e.Resource)}.";
+            if (e.Kind == ShopKind.SellResource && player != null) desc = $"У тебе: {player.Inventory.Get(e.Resource)}.";
             if (desc != null) GUI.Label(new Rect(r.x + 14, r.y + 62, r.width - 28, 56), desc, UIStyle.Wrap(14, UIStyle.TextDim));
 
             string status;
@@ -76,18 +76,18 @@ namespace Neanderthal
             Rect btn = new Rect(r.x + 14, r.yMax - 46, r.width - 28, 34);
             if (status != null)
             {
-                UIStyle.Text(btn, status, 15, status == "OWNED" ? UIStyle.Good : UIStyle.TextDim, TextAnchor.MiddleCenter, true);
+                UIStyle.Text(btn, status, 15, status == "ПРИДБАНО" ? UIStyle.Good : UIStyle.TextDim, TextAnchor.MiddleCenter, true);
                 return;
             }
             if (e.Kind == ShopKind.SellResource)
             {
                 Rect half = new Rect(btn.x, btn.y, btn.width * 0.48f, btn.height);
                 Rect half2 = new Rect(btn.x + btn.width * 0.52f, btn.y, btn.width * 0.48f, btn.height);
-                if (UIStyle.Button(half, "SELL 1", false, can, 15)) Sell(e, player, 1);
-                if (UIStyle.Button(half2, "SELL ALL", false, can, 15)) Sell(e, player, player.Inventory.Get(e.Resource));
+                if (UIStyle.Button(half, "ПРОДАТИ 1", false, can, 15)) Sell(e, player, 1);
+                if (UIStyle.Button(half2, "ПРОДАТИ ВСЕ", false, can, 15)) Sell(e, player, player.Inventory.Get(e.Resource));
                 return;
             }
-            if (UIStyle.Button(btn, can ? "BUY" : "NOT ENOUGH COINS", can, can, 15)) Buy(e, player);
+            if (UIStyle.Button(btn, can ? "КУПИТИ" : "БРАКУЄ МОНЕТ", can, can, 15)) Buy(e, player);
         }
 
         static bool CanBuy(ShopEntry e, PlayerController player, out string status)
@@ -96,16 +96,16 @@ namespace Neanderthal
             switch (e.Kind)
             {
                 case ShopKind.Blueprint:
-                    if (Profile.Current.HasBlueprint(e.Id)) { status = "OWNED"; return false; }
+                    if (Profile.Current.HasBlueprint(e.Id)) { status = "ПРИДБАНО"; return false; }
                     break;
                 case ShopKind.Weapon:
-                    if (player == null) { status = "SURVIVAL ONLY"; return false; }
-                    if (player.Inventory.HasWeapon(e.WeaponId)) { status = "OWNED"; return false; }
+                    if (player == null) { status = "ЛИШЕ В ТРЕНУВАННІ"; return false; }
+                    if (player.Inventory.HasWeapon(e.WeaponId)) { status = "ПРИДБАНО"; return false; }
                     break;
                 case ShopKind.SellResource:
                     return player != null && player.Inventory.Get(e.Resource) > 0;
                 default:
-                    if (player == null) { status = "SURVIVAL ONLY"; return false; }
+                    if (player == null) { status = "ЛИШЕ В ТРЕНУВАННІ"; return false; }
                     break;
             }
             return Profile.Current.Coins >= e.Price;
@@ -118,12 +118,12 @@ namespace Neanderthal
             {
                 case ShopKind.Blueprint:
                     Profile.Current.AddBlueprint(e.Id);
-                    Inventory.Notify($"Blueprint acquired: {e.Name}", UIStyle.Gold);
+                    Inventory.Notify($"Отримано креслення: {e.Name}", UIStyle.Gold);
                     break;
                 case ShopKind.Weapon: player.Inventory.AddWeapon(e.WeaponId); break;
                 case ShopKind.Ammo: player.Inventory.AddAmmo(e.Ammo, e.Amount); break;
                 case ShopKind.Resource: player.Inventory.Add(e.Resource, e.Amount); break;
-                case ShopKind.Armor: player.Health.AddArmor(e.Amount); Inventory.Notify($"+{e.Amount} armor", UIStyle.Accent); break;
+                case ShopKind.Armor: player.Health.AddArmor(e.Amount); Inventory.Notify($"+{e.Amount} броні", UIStyle.Accent); break;
             }
             Sfx.Play2D("buy");
             GameEvents.RaisePurchase(e);
@@ -136,7 +136,7 @@ namespace Neanderthal
             player.Inventory.Add(e.Resource, -count, false);
             Profile.Current.Earn(e.Price * count);
             Sfx.Play2D("coin");
-            Inventory.Notify($"Sold {count} {ItemDatabase.ResourceName(e.Resource)} for {e.Price * count}", UIStyle.Gold);
+            Inventory.Notify($"Продано: {ItemDatabase.ResourceName(e.Resource)} ×{count} за {e.Price * count} монет", UIStyle.Gold);
         }
     }
 
@@ -145,7 +145,7 @@ namespace Neanderthal
     {
         static string category;
         static Vector2 scroll;
-        static readonly string[] PrimitiveCats = { "Stone Tools", "Bone Weapons", "Fire", "Clothing", "Shelter" };
+        static readonly string[] PrimitiveCats = { "Кам'яні знаряддя", "Кістяна зброя", "Вогонь", "Одяг", "Притулок" };
 
         public static void Draw(bool workbench, System.Action close)
         {
@@ -156,7 +156,7 @@ namespace Neanderthal
             Rect panel = new Rect(W * 0.5f - 620, H * 0.5f - 370, 1240, 740);
             UIStyle.PanelBox(panel);
 
-            UIStyle.Text(new Rect(panel.x + 36, panel.y + 26, 500, 40), UIStyle.Spaced(workbench ? "Workbench" : "Crafting"), 28, Color.white, TextAnchor.MiddleLeft, true);
+            UIStyle.Text(new Rect(panel.x + 36, panel.y + 26, 500, 40), UIStyle.Spaced(workbench ? "Верстак" : "Виготовлення"), 28, Color.white, TextAnchor.MiddleLeft, true);
 
             // Resources row
             float rx = panel.x + 36;
@@ -167,7 +167,7 @@ namespace Neanderthal
                 rx += 170;
             }
 
-            string[] cats = workbench ? new[] { "Workbench" } : PrimitiveCats;
+            string[] cats = workbench ? new[] { "Верстак" } : PrimitiveCats;
             if (category == null || System.Array.IndexOf(cats, category) < 0) category = cats[0];
             float ty = panel.y + 120;
             foreach (var c in cats)
@@ -185,9 +185,9 @@ namespace Neanderthal
                 DrawRecipe(new Rect(0, i * (rh + 10), view.width, rh), recipes[i], player);
             GUI.EndScrollView();
 
-            if (UIStyle.Button(new Rect(panel.xMax - 196, panel.yMax - 60, 160, 40), "CLOSE  [Esc]", false, true, 16)) close();
+            if (UIStyle.Button(new Rect(panel.xMax - 196, panel.yMax - 60, 160, 40), "ЗАКРИТИ  [Esc]", false, true, 16)) close();
             if (!workbench)
-                UIStyle.Text(new Rect(panel.x + 36, panel.yMax - 56, 800, 30), "Modern weapons are built at a Workbench from blueprints bought from the trader.", 15, UIStyle.TextDim, TextAnchor.MiddleLeft);
+                UIStyle.Text(new Rect(panel.x + 36, panel.yMax - 56, 800, 30), "Сучасну зброю виготовляють на верстаку за кресленнями від торговця.", 15, UIStyle.TextDim, TextAnchor.MiddleLeft);
         }
 
         static void DrawRecipe(Rect r, Recipe recipe, PlayerController player)
@@ -212,11 +212,11 @@ namespace Neanderthal
             if (!hasBp)
             {
                 var bp = ItemDatabase.Blueprint(recipe.RequiredBlueprint);
-                UIStyle.Text(btn, "NEEDS BLUEPRINT\n" + (bp != null ? bp.Name : recipe.RequiredBlueprint), 14, UIStyle.TextDim, TextAnchor.MiddleCenter);
+                UIStyle.Text(btn, "ПОТРІБНЕ КРЕСЛЕННЯ\n" + (bp != null ? bp.Name : recipe.RequiredBlueprint), 14, UIStyle.TextDim, TextAnchor.MiddleCenter);
                 return;
             }
             bool can = player.Inventory.CanAfford(recipe.Cost) && !(recipe.GivesWeapon != null && player.Inventory.HasWeapon(recipe.GivesWeapon));
-            string label = recipe.GivesWeapon != null && player.Inventory.HasWeapon(recipe.GivesWeapon) ? "OWNED" : "CRAFT";
+            string label = recipe.GivesWeapon != null && player.Inventory.HasWeapon(recipe.GivesWeapon) ? "ПРИДБАНО" : "СТВОРИТИ";
             if (UIStyle.Button(btn, label, can, can, 16)) Crafting.Craft(recipe, player);
         }
     }
@@ -234,7 +234,7 @@ namespace Neanderthal
             if (r.GivesArmor > 0)
             {
                 player.Health.AddArmor(r.GivesArmor);
-                Inventory.Notify($"+{r.GivesArmor} armor", UIStyle.Accent);
+                Inventory.Notify($"+{r.GivesArmor} броні", UIStyle.Accent);
             }
             if (r.Places != null)
             {
@@ -244,7 +244,7 @@ namespace Neanderthal
                 var parent = GameManager.Instance != null ? GameManager.Instance.LevelRoot : null;
                 if (r.Places == "campfire") Campfire.Create(parent, pos);
                 else Campfire.CreateShelter(parent, pos, player.Yaw + 180f);
-                Inventory.Notify($"Built {r.Name}", UIStyle.Gold);
+                Inventory.Notify($"Збудовано: {r.Name}", UIStyle.Gold);
             }
             Sfx.Play2D("buy", 0.8f, 0.8f);
             GameEvents.RaiseCraft(r);

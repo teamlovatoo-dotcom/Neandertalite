@@ -37,7 +37,7 @@ namespace Neanderthal
             {
                 hitMarkerTime = Time.unscaledTime;
                 hitWasKill = h.Current <= 0f;
-                if (info.Headshot) OnFeed("Headshot!", UIStyle.Gold);
+                if (info.Headshot) OnFeed("У голову!", UIStyle.Gold);
             }
         }
 
@@ -208,7 +208,7 @@ namespace Neanderthal
                 Vector2 pos = c + new Vector2(Mathf.Sin(a), -Mathf.Cos(a)) * k;
                 float pulse = 6f + Mathf.Sin(Time.unscaledTime * 5f) * 1.5f;
                 UIStyle.Rect(new Rect(pos.x - pulse * 0.5f, pos.y - pulse * 0.5f, pulse, pulse), blip);
-                UIStyle.Text(new Rect(r.x, r.yMax + 2, r.width, 20), $"{dist:0} m", 14, UIStyle.TextDim, TextAnchor.UpperCenter);
+                UIStyle.Text(new Rect(r.x, r.yMax + 2, r.width, 20), $"{dist:0} м", 14, UIStyle.TextDim, TextAnchor.UpperCenter);
             }
         }
 
@@ -273,7 +273,7 @@ namespace Neanderthal
             int t = Mathf.Max(0, Mathf.CeilToInt(timeLeft));
             UIStyle.Text(new Rect(cx - 78, 22, 156, 36), $"{t / 60:00}:{t % 60:00}", 24, Color.white, TextAnchor.MiddleCenter, true);
             UIStyle.Text(new Rect(cx + 80, 22, 60, 36), red.ToString(), 24, Color.white, TextAnchor.MiddleCenter, true);
-            UIStyle.Text(new Rect(cx - 140, 60, 280, 20), UIStyle.Spaced($"first to {target}"), 12, UIStyle.TextDim, TextAnchor.MiddleCenter);
+            UIStyle.Text(new Rect(cx - 140, 60, 280, 20), UIStyle.Spaced($"до {target} вбивств"), 12, UIStyle.TextDim, TextAnchor.MiddleCenter);
         }
     }
 }

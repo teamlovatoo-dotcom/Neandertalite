@@ -50,7 +50,7 @@ namespace Neanderthal
 
         static ArenaLayout CaveForest(Transform root)
         {
-            var L = new ArenaLayout { Name = "Cave Forest", Center = new Vector3(0, 0, 0) };
+            var L = new ArenaLayout { Name = "Печерний ліс", Center = new Vector3(0, 0, 0) };
             Scenery.Lighting(root, new Color(1f, 0.9f, 0.75f), 1.1f, new Vector3(32f, -60f, 0f),
                 new Color(0.5f, 0.58f, 0.66f), new Color(0.38f, 0.4f, 0.35f), new Color(0.18f, 0.16f, 0.12f),
                 new Color(0.55f, 0.6f, 0.58f), 0.012f);
@@ -147,7 +147,7 @@ namespace Neanderthal
 
         static ArenaLayout CanyonFortress(Transform root)
         {
-            var L = new ArenaLayout { Name = "Canyon Fortress", Center = Vector3.zero };
+            var L = new ArenaLayout { Name = "Фортеця в каньйоні", Center = Vector3.zero };
             Scenery.Lighting(root, new Color(1f, 0.88f, 0.72f), 1.35f, new Vector3(42f, 140f, 0f),
                 new Color(0.55f, 0.65f, 0.8f), new Color(0.6f, 0.45f, 0.35f), new Color(0.35f, 0.22f, 0.15f),
                 new Color(0.8f, 0.68f, 0.58f), 0.006f);

@@ -21,7 +21,7 @@ namespace Neanderthal
             public float RespawnAt = -1f;
         }
 
-        static readonly string[] BotNames = { "Grok", "Ugg", "Thak", "Borr", "Mog" };
+        static readonly string[] BotNames = { "Грок", "Угг", "Тхак", "Борр", "Мог" };
         static readonly Color[] BotColors =
         {
             new Color(0.72f, 0.18f, 0.16f), new Color(0.85f, 0.5f, 0.15f), new Color(0.55f, 0.3f, 0.7f),
@@ -48,7 +48,7 @@ namespace Neanderthal
             layout = ArenaLevels.Build(s.Map, transform);
             var spawn = layout.Spawns[0];
             player = PlayerController.Spawn(transform, spawn.Position, spawn.Yaw);
-            me = new Combatant { Name = "You", Color = Mat.TeamBlue, Health = player.Health };
+            me = new Combatant { Name = "Ти", Color = Mat.TeamBlue, Health = player.Health };
             combatants.Add(me);
             GiveLoadout();
             player.Health.Died += info => OnDied(me, info);
@@ -70,7 +70,7 @@ namespace Neanderthal
                 combatants.Add(c);
                 bot.Health.Died += info => OnDied(c, info);
             }
-            Inventory.Notify(IsDuel ? $"DUEL — first to {s.ScoreToWin}" : $"DEATHMATCH — first to {s.ScoreToWin}", UIStyle.Gold);
+            Inventory.Notify(IsDuel ? $"ДУЕЛЬ — до {s.ScoreToWin} вбивств" : $"УСІ ПРОТИ ВСІХ — до {s.ScoreToWin} вбивств", UIStyle.Gold);
         }
 
         void GiveLoadout()
@@ -127,15 +127,15 @@ namespace Neanderthal
             {
                 killer.Kills++;
                 if (killer == me) Profile.Current.Earn(10);
-                Inventory.Notify($"{killer.Name} killed {victim.Name}", killer == me ? UIStyle.Gold : UIStyle.TextColor);
+                Inventory.Notify($"{killer.Name}  →  {victim.Name}", killer == me ? UIStyle.Gold : UIStyle.TextColor);
             }
             else
             {
-                Inventory.Notify($"{victim.Name} died", UIStyle.TextDim);
+                Inventory.Notify($"{victim.Name} загинув", UIStyle.TextDim);
             }
             if (victim == me)
             {
-                lastKiller = killer != null && killer != me ? killer.Name : "the fall";
+                lastKiller = killer != null && killer != me ? killer.Name : "падіння";
                 deadTimer = 3f;
             }
             if (killer != null && killer.Kills >= settings.ScoreToWin) Finish();
@@ -197,11 +197,11 @@ namespace Neanderthal
             else { if (!draw) p.DuelLosses++; p.Earn(40); }
 
             var body = new System.Text.StringBuilder();
-            foreach (var c in sorted) body.AppendLine($"{c.Name}   {c.Kills} kills / {c.Deaths} deaths");
+            foreach (var c in sorted) body.AppendLine($"{c.Name}   вбивств: {c.Kills}   смертей: {c.Deaths}");
             body.AppendLine();
-            body.Append(won ? "+150 coins" : "+40 coins");
+            body.Append(won ? "+150 монет" : "+40 монет");
             Sfx.Play2D(won ? "objective" : "deny", 0.8f);
-            UIManager.Instance.ShowResult(draw ? "DRAW" : (won ? "VICTORY" : $"{sorted[0].Name.ToUpperInvariant()} WINS"), body.ToString());
+            UIManager.Instance.ShowResult(draw ? "НІЧИЯ" : (won ? "ПЕРЕМОГА" : $"ПЕРЕМІГ {sorted[0].Name.ToUpperInvariant()}"), body.ToString());
         }
 
         public override bool TryGetRadarTarget(out Vector3 pos, out Color color)

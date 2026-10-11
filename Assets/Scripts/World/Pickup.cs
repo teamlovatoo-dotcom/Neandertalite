@@ -117,19 +117,19 @@ namespace Neanderthal
                     break;
                 case PickupKind.Coins:
                     Profile.Current.Earn(Amount);
-                    Inventory.Notify($"+{Amount} coins", new Color(1f, 0.85f, 0.3f));
+                    Inventory.Notify($"+{Amount} монет", new Color(1f, 0.85f, 0.3f));
                     Sfx.Play2D("coin", 0.8f);
                     break;
                 case PickupKind.Health:
                     if (player.Health.Current >= player.Health.Max) return;
                     player.Health.Heal(Amount);
-                    Inventory.Notify($"+{Amount} health", new Color(0.5f, 1f, 0.5f));
+                    Inventory.Notify($"+{Amount} здоров'я", new Color(0.5f, 1f, 0.5f));
                     Sfx.Play2D("pickup", 0.8f, 0.7f);
                     break;
                 case PickupKind.Armor:
                     if (player.Health.Armor >= player.Health.MaxArmor) return;
                     player.Health.AddArmor(Amount);
-                    Inventory.Notify($"+{Amount} armor", new Color(0.5f, 0.75f, 1f));
+                    Inventory.Notify($"+{Amount} броні", new Color(0.5f, 0.75f, 1f));
                     Sfx.Play2D("pickup", 0.8f, 0.6f);
                     break;
             }

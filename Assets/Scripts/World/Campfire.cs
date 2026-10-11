@@ -10,7 +10,7 @@ namespace Neanderthal
         public bool IsShelter;
         float restCooldown;
 
-        public string Prompt => IsShelter ? "[E] Rest in shelter (respawn point)" : "[E] Rest by the fire (respawn point)";
+        public string Prompt => IsShelter ? "[E] Відпочити в притулку (точка відродження)" : "[E] Відпочити біля вогню (точка відродження)";
         public bool CanInteract => true;
 
         public void Interact(PlayerController player)
@@ -20,9 +20,9 @@ namespace Neanderthal
             {
                 player.Health.Heal(50f);
                 restCooldown = 60f;
-                Inventory.Notify("Rested: +50 health", new Color(0.5f, 1f, 0.5f));
+                Inventory.Notify("Відпочинок: +50 здоров'я", new Color(0.5f, 1f, 0.5f));
             }
-            else Inventory.Notify("Respawn point set", new Color(1f, 0.8f, 0.5f));
+            else Inventory.Notify("Точку відродження встановлено", new Color(1f, 0.8f, 0.5f));
             Sfx.Play2D("objective", 0.5f);
         }
 

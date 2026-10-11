@@ -5,7 +5,7 @@ namespace Neanderthal
     /// <summary>The old one in the cave who trades blueprints for coins. Opens the shop UI.</summary>
     public class Trader : MonoBehaviour, IInteractable
     {
-        public string Prompt => "[E] Trade with the Old One";
+        public string Prompt => "[E] Торгувати зі Старійшиною";
         public bool CanInteract => true;
         CreatureBody body;
         float t;

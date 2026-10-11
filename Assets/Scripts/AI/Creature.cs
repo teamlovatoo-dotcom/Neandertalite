@@ -69,6 +69,20 @@ namespace Neanderthal
 
         public bool IsDead => state == State.Dead;
 
+        public static string TypeName(CreatureType t)
+        {
+            switch (t)
+            {
+                case CreatureType.Wolf: return "Вовк";
+                case CreatureType.Deer: return "Олень";
+                case CreatureType.Bear: return "Ведмідь";
+                case CreatureType.Mammoth: return "Мамонт";
+                case CreatureType.Hunter: return "Мисливець";
+                case CreatureType.Archer: return "Лучник";
+                default: return "Суперник";
+            }
+        }
+
         void OnEnable() => All.Add(this);
         void OnDisable() => All.Remove(this);
 

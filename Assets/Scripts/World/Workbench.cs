@@ -6,15 +6,15 @@ namespace Neanderthal
     public class Workbench : MonoBehaviour, IInteractable
     {
         public string Prompt => Profile.Current.HasBlueprint("bp_workbench")
-            ? "[E] Use Workbench"
-            : "Workbench (buy the Workbench blueprint from the trader)";
+            ? "[E] Скористатися верстаком"
+            : "Верстак (купи креслення верстака в торговця)";
         public bool CanInteract => true;
 
         public void Interact(PlayerController player)
         {
             if (!Profile.Current.HasBlueprint("bp_workbench"))
             {
-                Inventory.Notify("You need the Workbench blueprint (Trader -> BLUEPRINTS)", new Color(1f, 0.55f, 0.4f));
+                Inventory.Notify("Потрібне креслення верстака (Торговець → КРЕСЛЕННЯ)", new Color(1f, 0.55f, 0.4f));
                 Sfx.Play2D("deny", 0.6f);
                 return;
             }

@@ -19,7 +19,7 @@ namespace Neanderthal
         float ambient = 1f;
         Color baseSky, baseEquator, baseGround, baseFog;
 
-        public override string ObjectiveHeader => "Chapter 1 · Valley of the Tower";
+        public override string ObjectiveHeader => "Розділ 1 · Долина вежі";
 
         public override string ObjectiveText
         {
@@ -27,15 +27,15 @@ namespace Neanderthal
             {
                 switch (step)
                 {
-                    case Step.Gather: return $"Gather 3 Wood and 2 Stone  ({Mathf.Min(3, player.Inventory.Get(Resource.Wood))}/3, {Mathf.Min(2, player.Inventory.Get(Resource.Stone))}/2)";
-                    case Step.CraftSpear: return "Craft a Spear  [Tab]";
-                    case Step.Wolves: return $"Hunt the wolves by the river  ({wolfKills}/{level.Wolves.Count})";
-                    case Step.FindCave: return "Find the cave in the western cliffs";
-                    case Step.Mammoth: return "Slay the cave mammoth";
-                    case Step.Trade: return "Trade with the Old One deep in the cave";
-                    case Step.Camp: return $"Break through the rival camp  ({campKills}/{level.Campers.Count})";
-                    case Step.Tower: return "Reach the Tower";
-                    default: return "Chapter complete";
+                    case Step.Gather: return $"Збери 3 деревини і 2 каменю  ({Mathf.Min(3, player.Inventory.Get(Resource.Wood))}/3, {Mathf.Min(2, player.Inventory.Get(Resource.Stone))}/2)";
+                    case Step.CraftSpear: return "Створи спис  [Tab]";
+                    case Step.Wolves: return $"Вполюй вовків біля річки  ({wolfKills}/{level.Wolves.Count})";
+                    case Step.FindCave: return "Знайди печеру в західних скелях";
+                    case Step.Mammoth: return "Вбий печерного мамонта";
+                    case Step.Trade: return "Поторгуй зі Старійшиною в глибині печери";
+                    case Step.Camp: return $"Прорвися через табір суперників  ({campKills}/{level.Campers.Count})";
+                    case Step.Tower: return "Дійди до вежі";
+                    default: return "Розділ пройдено";
                 }
             }
         }
@@ -46,12 +46,12 @@ namespace Neanderthal
             {
                 switch (step)
                 {
-                    case Step.Gather: return "Walk over sticks and stones, or hit trees and rocks.";
-                    case Step.CraftSpear: return "LMB thrusts, hold RMB to throw — then pick it back up.";
-                    case Step.Wolves: return "Wolves fear fire. Knife kills give extra hide.";
-                    case Step.Mammoth: return "Keep your distance. Throw spears, shoot arrows, use the pillars.";
-                    case Step.Trade: return "Sell hides & bones, buy the Workbench blueprint, build modern weapons.";
-                    case Step.Camp: return "Archers on the flanks. Campfires heal.";
+                    case Step.Gather: return "Підбирай гілки й каміння або бий дерева та скелі.";
+                    case Step.CraftSpear: return "ЛКМ — удар, затисни ПКМ — кидок. Потім підбери спис.";
+                    case Step.Wolves: return "Вовки бояться вогню. Вбивство ножем дає додаткову шкуру.";
+                    case Step.Mammoth: return "Тримай дистанцію. Кидай списи, стріляй, ховайся за колонами.";
+                    case Step.Trade: return "Продай шкури й кістки, купи креслення верстака, створюй сучасну зброю.";
+                    case Step.Camp: return "Лучники на флангах. Вогнища лікують.";
                     default: return "";
                 }
             }
@@ -72,7 +72,7 @@ namespace Neanderthal
             baseEquator = RenderSettings.ambientEquatorColor;
             baseGround = RenderSettings.ambientGroundColor;
             baseFog = RenderSettings.fogColor;
-            Inventory.Notify("Chapter 1 · Valley of the Tower", UIStyle.Gold);
+            Inventory.Notify("Розділ 1 · Долина вежі", UIStyle.Gold);
         }
 
         void OnPlayerDied(DamageInfo info)
@@ -113,8 +113,8 @@ namespace Neanderthal
             Profile.Current.ChapterOneComplete = true;
             Profile.Current.Earn(300);
             Sfx.Play2D("objective", 1f, 0.8f);
-            UIManager.Instance.ShowResult("CHAPTER 1 COMPLETE",
-                "The tower hums. Its door is sealed... for now.\nFrom stone to steel.\n\n+300 coins");
+            UIManager.Instance.ShowResult("РОЗДІЛ 1 ПРОЙДЕНО",
+                "Вежа гуде. Її двері запечатані... поки що.\nВід каменю до сталі.\n\n+300 монет");
         }
 
         void Update()
@@ -160,7 +160,7 @@ namespace Neanderthal
             if (lost > 0) Profile.Current.Spend(lost);
             player.ResetForRespawn();
             player.Teleport(GameManager.Instance.RespawnPoint, player.Yaw);
-            Inventory.Notify(lost > 0 ? $"You lost {lost} coins" : "You wake up...", UIStyle.Bad);
+            Inventory.Notify(lost > 0 ? $"Ти втратив {lost} монет" : "Ти прокидаєшся...", UIStyle.Bad);
         }
 
         public override bool TryGetRadarTarget(out Vector3 pos, out Color color)

@@ -52,7 +52,7 @@ namespace Neanderthal
             var inv = player.Inventory;
             if (inv.Get(Resource.Herbs) <= 0)
             {
-                Inventory.Notify("No healing herbs (buy from the trader or find red-berry bushes)", new Color(1f, 0.5f, 0.4f));
+                Inventory.Notify("Немає цілющих трав (купи в торговця або знайди кущі з червоними ягодами)", new Color(1f, 0.5f, 0.4f));
                 Sfx.Play2D("deny", 0.5f);
                 return;
             }
@@ -60,7 +60,7 @@ namespace Neanderthal
             inv.Add(Resource.Herbs, -1, false);
             player.Health.Heal(35f);
             Sfx.Play2D("pickup", 0.7f, 0.7f);
-            Inventory.Notify("+35 health", new Color(0.5f, 1f, 0.5f));
+            Inventory.Notify("+35 здоров'я", new Color(0.5f, 1f, 0.5f));
         }
     }
 }
