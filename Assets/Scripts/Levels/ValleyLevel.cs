@@ -192,11 +192,26 @@ namespace Neanderthal
             {
                 Vector3 p = c + new Vector3(5f - i * 10f, 0, -6f);
                 p.y = Height(p.x, p.z);
+                if (Camp.Has(Camp.Kind.DryingRack))
+                {
+                    Camp.Place(Camp.Kind.DryingRack, root, p, i * 30f - 15f);
+                    continue;
+                }
                 var t = Shapes.Pivot(root, p, "Rack");
                 Shapes.Stick(t, new Vector3(-1.2f, 0, 0), new Vector3(-1.2f, 2f, 0), 0.08f, Mat.Get(Mat.Wood), true);
                 Shapes.Stick(t, new Vector3(1.2f, 0, 0), new Vector3(1.2f, 2f, 0), 0.08f, Mat.Get(Mat.Wood), true);
                 Shapes.Stick(t, new Vector3(-1.3f, 1.9f, 0), new Vector3(1.3f, 1.9f, 0), 0.06f, Mat.Get(Mat.Wood));
                 Shapes.Box(t, new Vector3(0, 1.3f, 0), new Vector3(1.6f, 1.1f, 0.04f), Mat.Get(Mat.Fur), null, false);
+            }
+            if (Camp.Has(Camp.Kind.MammothHut))
+            {
+                Vector3 h = c + new Vector3(0f, 0f, 17f);
+                h.y = Camp.GroundUnder(Height, h.x, h.z, 2.6f) - 0.05f;
+                Camp.Place(Camp.Kind.MammothHut, root, h, 180f);
+                Vector3 w = c + new Vector3(3.2f, 0f, 3.5f);
+                Camp.Place(Camp.Kind.WoodPile, root, new Vector3(w.x, Height(w.x, w.z) - 0.03f, w.z), 40f);
+                Vector3 bp = c + new Vector3(-7f, 0f, 13f);
+                Camp.Place(Camp.Kind.BonePile, root, new Vector3(bp.x, Height(bp.x, bp.z) - 0.03f, bp.z), 120f, 1f, false);
             }
             Scenery.TorchPost(root, c + new Vector3(4f, Height(c.x + 4f, c.z + 9f) - c.y, 9f));
             Scenery.TorchPost(root, c + new Vector3(-4f, Height(c.x - 4f, c.z - 12f) - c.y, -12f));

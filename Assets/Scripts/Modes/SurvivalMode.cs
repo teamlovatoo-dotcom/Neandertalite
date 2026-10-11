@@ -50,7 +50,7 @@ namespace Neanderthal
                     case Step.CraftSpear: return "ЛКМ — удар, затисни ПКМ — кидок. Потім підбери спис.";
                     case Step.Wolves: return "Вовки бояться вогню. Вбивство ножем дає додаткову шкуру.";
                     case Step.Mammoth: return "Тримай дистанцію. Кидай списи, стріляй, ховайся за колонами.";
-                    case Step.Trade: return "Продай шкури й кістки, купи креслення верстака, створюй сучасну зброю.";
+                    case Step.Trade: return ItemDatabase.ModernWeapons ? "Продай шкури й кістки, купи креслення верстака, створюй сучасну зброю." : "Продай шкури й кістки, купи рогатку або обсидіанову зброю.";
                     case Step.Camp: return "Лучники на флангах. Вогнища лікують.";
                     default: return "";
                 }
@@ -63,6 +63,8 @@ namespace Neanderthal
             player = PlayerController.Spawn(transform, level.PlayerStart + Vector3.up * 0.3f, 0f);
             GameManager.Instance.SetRespawn(level.PlayerStart + Vector3.up * 0.3f);
             player.Health.Died += OnPlayerDied;
+            player.Inventory.AddWeapon("stick", false);
+            player.Inventory.AddWeapon("stone", false);
 
             GameEvents.CreatureKilled += OnKill;
             GameEvents.ZoneEntered += OnZone;

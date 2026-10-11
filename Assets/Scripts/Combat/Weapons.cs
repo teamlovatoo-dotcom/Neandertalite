@@ -31,6 +31,7 @@ namespace Neanderthal
                 case WeaponKind.Spear: w = new SpearWeapon(); break;
                 case WeaponKind.Bow: w = new BowWeapon(); break;
                 case WeaponKind.Firearm: w = new GunWeapon(); break;
+                case WeaponKind.Throw: w = new ThrowWeapon(); break;
                 default: w = new MeleeWeapon(); break;
             }
             w.Data = data;
@@ -43,8 +44,8 @@ namespace Neanderthal
             Model = WeaponModels.Build(Data.Id, Holder.ViewRoot, out var bs).transform;
             OnModelBuilt(bs);
             Shapes.SetShadows(Model.gameObject, false);
-            // A rough hand on the grip so it reads as "held".
-            if (Data.Id != "fists")
+            // A rough hand on the grip so it reads as "held" (detailed models are shown on their own).
+            if (Data.Id != "fists" && WeaponModels.ModelName(Data.Id) == null)
                 Shapes.Box(Model, new Vector3(0f, -0.01f, 0f), new Vector3(0.085f, 0.09f, 0.1f), Mat.Get(Mat.Skin), null, false);
             if (Data.LightRange > 0f)
                 Shapes.PointLight(Model, new Vector3(0f, 0.1f, 0.55f), Mat.Fire, Data.LightRange, 2.2f, true);
@@ -227,10 +228,10 @@ namespace Neanderthal
         void Throw()
         {
             Player.UseStamina(Data.StaminaCost * 1.5f);
-            var visual = WeaponModels.Build("spear", null, out _);
+            var visual = WeaponModels.Build(Data.Id, null, out _);
             Vector3 dir = Aim;
             Vector3 pos = EyePos + dir * 0.6f + Player.Cam.transform.right * 0.15f;
-            var p = Projectile.Launch(visual, pos, dir * Data.ProjectileSpeed * Mathf.Lerp(0.6f, 1f, throwCharge) + Player.Velocity * 0.5f, 70f * throwCharge, Player.gameObject, 7f);
+            var p = Projectile.Launch(visual, pos, dir * Data.ProjectileSpeed * Mathf.Lerp(0.6f, 1f, throwCharge) + Player.Velocity * 0.5f, Data.Damage * 2.2f * throwCharge, Player.gameObject, 7f);
             p.RecoverWeaponId = Data.Id;
             p.Knockback = 5f;
             Sfx.Play("swing", EyePos, 0.9f, 0.7f);
@@ -251,8 +252,11 @@ namespace Neanderthal
 
         public override bool CanHolster => !drawing;
         public override bool Busy => drawing;
-        public override Vector3 HipPosition => Aiming ? new Vector3(-0.03f, -0.07f, 0.5f) : new Vector3(-0.1f, -0.1f, 0.5f);
-        public override Vector3 HipEuler => new Vector3(0f, 3f, -24f);
+        bool Sling => Data.Ammo == AmmoType.Stone;
+        public override Vector3 HipPosition => Sling
+            ? (Aiming ? new Vector3(0f, -0.1f, 0.42f) : new Vector3(0.06f, -0.14f, 0.42f))
+            : (Aiming ? new Vector3(-0.03f, -0.07f, 0.5f) : new Vector3(-0.1f, -0.1f, 0.5f));
+        public override Vector3 HipEuler => Sling ? new Vector3(-4f, 0f, -8f) : new Vector3(0f, 3f, -24f);
         public override string AmmoText => Player.Inventory.GetAmmo(Data.Ammo).ToString();
         public override string ReserveText => ItemDatabase.AmmoName(Data.Ammo);
 
@@ -305,11 +309,12 @@ namespace Neanderthal
             float shake = heldFull > 2.5f ? Mathf.Min(4f, (heldFull - 2.5f) * 2f) : 0f;
             float spread = (Aiming ? 0.1f : 0.6f) + (1f - draw) * 1.5f + shake;
             Vector3 dir = Spread(Aim, spread);
-            var visual = WeaponModels.Arrow(null, false);
+            var visual = Sling ? WeaponModels.Stone(null) : WeaponModels.Arrow(null, false);
             Vector3 pos = EyePos + dir * 0.4f;
             var p = Projectile.Launch(visual, pos, dir * Data.ProjectileSpeed * Mathf.Lerp(0.35f, 1f, draw), Data.Damage * Mathf.Lerp(0.25f, 1f, draw * draw), Player.gameObject);
-            p.RecoverAmmo = AmmoType.Arrow;
-            Sfx.Play("bow", EyePos, 0.8f);
+            p.RecoverAmmo = Data.Ammo;
+            p.Blunt = Sling;
+            Sfx.Play("bow", EyePos, 0.8f, Sling ? 1.6f : 1f);
             Cooldown = Data.Cooldown;
             Player.AddRecoil(0.6f, Random.Range(-0.2f, 0.2f));
         }
@@ -443,6 +448,64 @@ namespace Neanderthal
             float kick = Mathf.Clamp(Data.Damage * Mathf.Max(1, Data.Pellets) / 25f, 0.6f, 6f);
             Player.AddRecoil(kick * (Aiming ? 0.6f : 1f), Random.Range(-0.4f, 0.4f) * kick);
             Player.Shake(Mathf.Min(0.4f, kick * 0.05f));
+        }
+    }
+
+    /// <summary>Thrown stones: hold LMB to wind up, release to throw. Stones that miss can be picked up again.</summary>
+    public class ThrowWeapon : Weapon
+    {
+        float wind;
+        bool winding;
+
+        public override bool CanHolster => !winding;
+        public override bool Busy => winding;
+        public override Vector3 HipPosition => new Vector3(0.24f, -0.22f, 0.38f);
+        public override Vector3 HipEuler => new Vector3(10f, -10f, 0f);
+        public override string AmmoText => Player.Inventory.GetAmmo(Data.Ammo).ToString();
+        public override string ReserveText => ItemDatabase.AmmoName(Data.Ammo);
+
+        public override void Tick(float dt, bool inputOk)
+        {
+            Cooldown -= dt;
+            int have = Player.Inventory.GetAmmo(Data.Ammo);
+            if (Model != null) Model.gameObject.SetActive(have > 0 && Cooldown <= Data.Cooldown * 0.4f);
+
+            if (!winding && inputOk && Cooldown <= 0f && GameInput.FireHeld && have > 0)
+            {
+                winding = true;
+                wind = 0f;
+            }
+            if (winding)
+            {
+                wind = Mathf.MoveTowards(wind, 1f, dt / Mathf.Max(0.1f, Data.ChargeTime));
+                if (!GameInput.FireHeld || !inputOk)
+                {
+                    winding = false;
+                    if (inputOk && wind > 0.1f) Throw();
+                    wind = 0f;
+                }
+            }
+            Charge = wind;
+            float follow = Cooldown > 0f ? Mathf.Clamp01(Cooldown / Data.Cooldown) : 0f;
+            AnimPos = new Vector3(0.06f, 0.16f, -0.24f) * wind + new Vector3(-0.18f, -0.08f, 0.3f) * follow;
+            AnimEuler = new Vector3(-40f * wind + 35f * follow, 0f, 0f);
+        }
+
+        void Throw()
+        {
+            if (Player.Inventory.TakeAmmo(Data.Ammo, 1) == 0) return;
+            Player.UseStamina(Data.StaminaCost);
+            Vector3 dir = Spread(Aim, 0.6f + (1f - wind) * 2f);
+            var visual = WeaponModels.Stone(null);
+            Vector3 pos = EyePos + dir * 0.5f + Player.Cam.transform.right * 0.12f;
+            var p = Projectile.Launch(visual, pos, dir * Data.ProjectileSpeed * Mathf.Lerp(0.45f, 1f, wind) + Player.Velocity * 0.4f,
+                Data.Damage * Mathf.Lerp(0.4f, 1f, wind), Player.gameObject);
+            p.RecoverAmmo = Data.Ammo;
+            p.Blunt = true;
+            p.Knockback = 3f;
+            Sfx.Play("swing", EyePos, 0.8f, 1.35f);
+            Cooldown = Data.Cooldown;
+            Player.AddRecoil(0.4f, 0f);
         }
     }
 }

@@ -437,10 +437,12 @@ namespace Neanderthal
             Vector3 dir = (aimPoint - from).normalized;
             Vector2 r = Random.insideUnitCircle * Mathf.Tan(Accuracy * Mathf.Deg2Rad);
             dir = (dir + transform.right * r.x + Vector3.up * r.y).normalized;
-            var visual = WeaponModels.Arrow(null, false);
+            bool sling = RangedWeapon == "slingshot";
+            var visual = sling ? WeaponModels.Stone(null) : WeaponModels.Arrow(null, false);
             var p = Projectile.Launch(visual, from, dir * ProjectileSpeed, AttackDamage, gameObject);
-            p.RecoverAmmo = AmmoType.Arrow;
-            Sfx.Play("bow", from, 0.8f);
+            p.RecoverAmmo = sling ? AmmoType.Stone : AmmoType.Arrow;
+            p.Blunt = sling;
+            Sfx.Play("bow", from, 0.8f, sling ? 1.6f : 1f);
         }
 
         float HorizontalDistance(Vector3 p)

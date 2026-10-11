@@ -14,6 +14,8 @@ namespace Neanderthal
         public string RecoverWeaponId;            // thrown spear -> becomes a spear pickup
         public AmmoType RecoverAmmo = AmmoType.None;
         public float Knockback = 2f;
+        /// <summary>Stones: tumble in flight, bounce off instead of sticking, and always land on the ground.</summary>
+        public bool Blunt;
 
         Vector3 velocity;
         bool stuck;
@@ -60,7 +62,8 @@ namespace Neanderthal
                 return;
             }
             transform.position = start + step;
-            transform.rotation = Quaternion.LookRotation(velocity);
+            if (Blunt) transform.Rotate(new Vector3(720f, 300f, 0f) * dt, Space.Self);
+            else transform.rotation = Quaternion.LookRotation(velocity);
         }
 
         void OnImpact(RaycastHit hit)
@@ -82,6 +85,17 @@ namespace Neanderthal
                 Effects.Dust(hit.point, hit.normal);
                 var harvest = hit.collider.GetComponentInParent<Harvestable>();
                 if (harvest != null && RecoverWeaponId != null) harvest.Hit(0.3f, hit.point, Owner);
+            }
+
+            if (Blunt)
+            {
+                // Stones drop where they hit and can be picked up again.
+                Vector3 rest = hit.point + hit.normal * 0.04f;
+                if (PhysicsUtil.RaycastStatic(hit.point + Vector3.up * 0.5f - dir * 0.3f, Vector3.down, 8f, out var floor)) rest = floor.point + Vector3.up * 0.035f;
+                transform.position = rest;
+                if (RecoverAmmo != AmmoType.None) Pickup.MakeRecoverable(gameObject, null, RecoverAmmo, 1);
+                else Destroy(gameObject, 10f);
+                return;
             }
 
             // Embed slightly. Creatures carry the arrow along (parented to their unscaled root).

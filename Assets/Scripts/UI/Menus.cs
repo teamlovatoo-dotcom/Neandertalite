@@ -20,9 +20,13 @@ namespace Neanderthal
     public static class Menus
     {
         public static readonly ArenaSettings Duel = new ArenaSettings();
-        static readonly string[] Primaries = { "bow", "compound_bow", "crossbow", "shotgun", "rifle", "sniper" };
-        static readonly string[] Secondaries = { "spear", "pistol" };
-        static readonly string[] Melees = { "knife", "club", "axe", "bone_dagger", "torch" };
+        static readonly string[] Primaries = ItemDatabase.ModernWeapons
+            ? new[] { "bow", "slingshot", "compound_bow", "crossbow", "shotgun", "rifle", "sniper" }
+            : new[] { "bow", "slingshot" };
+        static readonly string[] Secondaries = ItemDatabase.ModernWeapons
+            ? new[] { "spear", "obsidian_spear", "stone", "pistol" }
+            : new[] { "spear", "obsidian_spear", "stone" };
+        static readonly string[] Melees = { "knife", "obsidian_knife", "stick", "club", "axe", "obsidian_axe", "bone_dagger", "torch" };
         static bool confirmReset;
 
         static readonly float[] hover = new float[8];
@@ -45,7 +49,7 @@ namespace Neanderthal
             y += 74;
             if (MenuItem(new Rect(x, y, 520, 66), 1, "Тренування", "долина, крафт, полювання")) GameManager.Instance.StartSurvival();
             y += 74;
-            if (MenuItem(new Rect(x, y, 520, 66), 2, "Магазин", "креслення сучасної зброї")) UIManager.Instance.Show(UIScreen.MenuShop);
+            if (MenuItem(new Rect(x, y, 520, 66), 2, "Магазин", ItemDatabase.ModernWeapons ? "креслення сучасної зброї" : "зброя кам'яної доби")) UIManager.Instance.Show(UIScreen.MenuShop);
             y += 74;
             if (MenuItem(new Rect(x, y, 520, 66), 3, "Налаштування", null)) UIManager.Instance.OpenSettings(UIScreen.MainMenu);
             y += 74;
@@ -60,7 +64,8 @@ namespace Neanderthal
             var prof = Profile.Current;
             UIStyle.Coins(new Rect(110, H - 120, 200, 30), prof.Coins.ToString(), 20, Color.white, false, true);
             var stat = UIStyle.Label(16, UIStyle.TextDim, TextAnchor.MiddleLeft, UIStyle.FontRegular);
-            GUI.Label(new Rect(110, H - 86, 900, 26), UIStyle.Spaced($"креслення {prof.Blueprints.Count}/8   ·   перемоги {prof.DuelWins}   ·   поразки {prof.DuelLosses}"), stat);
+            string bpText = ItemDatabase.ModernWeapons ? $"креслення {prof.Blueprints.Count}/8   ·   " : "";
+            GUI.Label(new Rect(110, H - 86, 900, 26), UIStyle.Spaced($"{bpText}перемоги {prof.DuelWins}   ·   поразки {prof.DuelLosses}"), stat);
 
             var corner = UIStyle.Label(15, new Color(0.8f, 0.8f, 0.8f, 0.75f), TextAnchor.MiddleRight, UIStyle.FontLight);
             GUI.Label(new Rect(W - 420, H - 120, 360, 24), UIStyle.Spaced("Від каменю"), corner);
@@ -222,7 +227,7 @@ namespace Neanderthal
                 if (UIStyle.Button(new Rect(x + 560 + i * 130, y, 120, 44), diffs[i], Duel.Difficulty == i, true, 16)) Duel.Difficulty = i;
 
             GUI.Label(new Rect(panel.xMax - 270, panel.y + 560, 240, 140),
-                "Креслення з МАГАЗИНУ відкривають сучасну зброю.\nПредмети на карті з'являються знову.\nПеремога +150, поразка +40, вбивство +10 монет.\nПоки що суперники — боти.",
+                (ItemDatabase.ModernWeapons ? "Креслення з МАГАЗИНУ відкривають сучасну зброю." : "Камінь → рогатка → лук.\nОбсидіан гостріший за кремінь.") + "\nПредмети на карті з'являються знову.\nПеремога +150, поразка +40, вбивство +10 монет.\nПоки що суперники — боти.",
                 UIStyle.Wrap(13, UIStyle.TextDim));
 
             if (UIStyle.Button(new Rect(panel.xMax - 420, panel.yMax - 80, 180, 50), "НАЗАД", false, true, 18)) UIManager.Instance.Show(UIScreen.MainMenu);
@@ -236,6 +241,7 @@ namespace Neanderthal
             float bx = x;
             foreach (var id in options)
             {
+                if (bx + 180 > x + 1200) { bx = x; y += 58; }
                 var data = ItemDatabase.Weapon(id);
                 string bp = ItemDatabase.BlueprintForWeapon(id);
                 bool unlocked = bp == null || Profile.Current.HasBlueprint(bp);

@@ -55,18 +55,8 @@ namespace Neanderthal
                     Shapes.Ball(t, new Vector3(Mathf.Cos(a) * 0.6f, 0.08f, Mathf.Sin(a) * 0.6f), new Vector3(0.3f, 0.2f, 0.25f), stone, false);
                 }
             }
-            var wood = Mat.Get(Mat.WoodDark);
-            for (int i = 0; i < 4; i++)
-            {
-                float a = i * Mathf.PI * 0.5f + 0.4f;
-                Shapes.Stick(t, new Vector3(Mathf.Cos(a) * 0.45f, 0.05f, Mathf.Sin(a) * 0.45f), new Vector3(0, 0.45f, 0), 0.08f, wood);
-            }
+            FireWood(t);
             FireFx.Fire(t, new Vector3(0, 0.15f, 0), 1f, true, false, 12f, 2.6f, true);
-            // glowing coals
-            var coals = Shapes.Ball(t, new Vector3(0, 0.06f, 0), new Vector3(0.6f, 0.12f, 0.6f), Mat.Emissive(new Color(1f, 0.35f, 0.08f), 2.5f), false);
-            Shapes.SetShadows(coals, false);
-            var inner = Shapes.Ball(t, new Vector3(0, 0.3f, 0), new Vector3(0.25f, 0.4f, 0.25f), Mat.Emissive(new Color(1f, 0.9f, 0.5f), 4f), false);
-            Shapes.SetShadows(inner, false);
             var col = go.AddComponent<SphereCollider>();
             col.radius = 0.7f;
             col.center = new Vector3(0, 0.3f, 0);
@@ -74,8 +64,37 @@ namespace Neanderthal
             return go.AddComponent<Campfire>();
         }
 
+        /// <summary>Burning logs stacked in a cone over a bed of glowing embers.</summary>
+        public static void FireWood(Transform t)
+        {
+            var bark = ModelKit.For("bark");
+            var charred = ModelKit.For("char");
+            for (int i = 0; i < 5; i++)
+            {
+                float a = i * Mathf.PI * 2f / 5f + 0.4f;
+                var log = Shapes.Stick(t, new Vector3(Mathf.Cos(a) * 0.5f, 0.04f, Mathf.Sin(a) * 0.5f), new Vector3(Mathf.Cos(a) * 0.06f, 0.5f, Mathf.Sin(a) * 0.06f), 0.09f, i % 2 == 0 ? bark : charred);
+                log.name = "Log";
+            }
+            var coals = Shapes.Ball(t, new Vector3(0, 0.03f, 0), new Vector3(0.75f, 0.07f, 0.75f), Mat.Emissive(new Color(1f, 0.32f, 0.06f), 2.2f), false);
+            Shapes.SetShadows(coals, false);
+            for (int i = 0; i < 6; i++)
+            {
+                float a = i * 1.1f;
+                var ember = Shapes.Ball(t, new Vector3(Mathf.Cos(a) * 0.22f, 0.06f, Mathf.Sin(a) * 0.22f), new Vector3(0.12f, 0.06f, 0.1f), Mat.Emissive(new Color(1f, 0.45f, 0.1f), 3f), false);
+                Shapes.SetShadows(ember, false);
+            }
+        }
+
         public static Campfire CreateShelter(Transform parent, Vector3 pos, float yaw)
         {
+            if (Camp.Has(Camp.Kind.LeanTo))
+            {
+                var lean = Camp.Place(Camp.Kind.LeanTo, parent, pos, yaw);
+                lean.name = "Shelter";
+                var cs = lean.AddComponent<Campfire>();
+                cs.IsShelter = true;
+                return cs;
+            }
             var go = new GameObject("Shelter");
             go.transform.SetParent(parent, true);
             go.transform.position = pos;

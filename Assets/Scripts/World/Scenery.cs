@@ -222,6 +222,7 @@ namespace Neanderthal
 
         public static GameObject Hut(Transform parent, Vector3 pos, float yaw, float radius)
         {
+            if (Camp.Has(Camp.Kind.Tipi)) return Camp.Place(Camp.Kind.Tipi, parent, pos - Vector3.up * 0.05f, yaw, radius / 2.1f);
             EnsureMats();
             var go = new GameObject("Hut");
             go.transform.SetParent(parent, false);

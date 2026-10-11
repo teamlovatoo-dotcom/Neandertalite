@@ -27,6 +27,16 @@ namespace Neanderthal
         }
 
         // ------------------------------------------------------------------ CAVE FOREST
+        static readonly Vector2 ForestCampE = new Vector2(33f, 5f), ForestCampW = new Vector2(-33f, 3f);
+        static readonly Vector2 CanyonCampN = new Vector2(0f, 36f), CanyonCampS = new Vector2(0f, -36f);
+
+        static bool AwayFromCamps(float x, float z, float r)
+        {
+            var p = new Vector2(x, z);
+            return Vector2.Distance(p, ForestCampE) > r && Vector2.Distance(p, ForestCampW) > r &&
+                   Vector2.Distance(p, CanyonCampN) > r && Vector2.Distance(p, CanyonCampS) > r;
+        }
+
         static float StreamZ(float x) => -12f + 5f * Mathf.Sin(x / 12f);
         static float Smooth(float e0, float e1, float v) => Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(e0, e1, v));
 
@@ -119,23 +129,29 @@ namespace Neanderthal
             var trees = Shapes.Pivot(root, Vector3.zero, "Trees");
             foreach (var p in Scenery.Scatter(rnd, 90, new Rect(-46, -46, 92, 92), (x, z) =>
                          Mathf.Abs(z - StreamZ(x)) > 6f && Vector2.Distance(new Vector2(x, z), new Vector2(0, 14)) > 16f &&
-                         Mathf.Abs(new Vector2(x, z).magnitude - 30f) > 3f && Vector2.Distance(new Vector2(x, z), new Vector2(26, -14)) > 10f))
+                         Mathf.Abs(new Vector2(x, z).magnitude - 30f) > 3f && Vector2.Distance(new Vector2(x, z), new Vector2(26, -14)) > 10f &&
+                         AwayFromCamps(x, z, 12f)))
             {
                 var pos = new Vector3(p.x, ForestHeight(p.x, p.z) - 0.2f, p.z);
                 if (rnd.NextDouble() < 0.85) Scenery.Pine(trees, pos, 10f + (float)rnd.NextDouble() * 8f, rnd.Next());
                 else Scenery.BroadTree(trees, pos, 7f + (float)rnd.NextDouble() * 3f, rnd.Next());
             }
-            foreach (var p in Scenery.Scatter(rnd, 30, new Rect(-44, -44, 88, 88), (x, z) => Mathf.Abs(z - StreamZ(x)) > 4f))
+            foreach (var p in Scenery.Scatter(rnd, 30, new Rect(-44, -44, 88, 88), (x, z) => Mathf.Abs(z - StreamZ(x)) > 4f && AwayFromCamps(x, z, 11f)))
             {
                 float s = 1f + (float)rnd.NextDouble() * 2f;
                 Scenery.Rock(root, new Vector3(p.x, ForestHeight(p.x, p.z), p.z), new Vector3(s * 1.4f, s, s), (float)rnd.NextDouble() * 360f, false, false, rnd.Next(4));
             }
+            // Two Neanderthal camps on the flanks (tipis, a mammoth-bone hut, racks, a fire).
+            Camp.Build(root, new Vector3(ForestCampE.x, 0f, ForestCampE.y), ForestHeight, 5, true, 7.5f);
+            Camp.Build(root, new Vector3(ForestCampW.x, 0f, ForestCampW.y), ForestHeight, 6, false, 6.5f);
+
             // Photo-scanned undergrowth: ferns, shrubs, mossy rocks, deadwood
             System.Func<float, float, bool> forestFloor = (x, z) =>
                 Mathf.Abs(x) < 46f && Mathf.Abs(z) < 46f && Mathf.Abs(z - StreamZ(x)) > 4.5f &&
                 !(Mathf.Abs(z - 14f) < 6.5f && Mathf.Abs(x) < 22f) &&
                 Vector2.Distance(new Vector2(x, z), new Vector2(26f, -14f)) > 10f &&
-                Mathf.Abs(new Vector2(x, z).magnitude - 30f) > 1.8f;
+                Mathf.Abs(new Vector2(x, z).magnitude - 30f) > 1.8f &&
+                Vector2.Distance(new Vector2(x, z), ForestCampE) > 11f && Vector2.Distance(new Vector2(x, z), ForestCampW) > 10f;
             var prnd = new System.Random(77);
             var area = new Rect(-46, -46, 92, 92);
             PropLibrary.Scatter(PropLibrary.Kind.Fern, root, prnd, 140, area, ForestHeight, forestFloor, 1.1f, 1.9f, false);
@@ -167,6 +183,11 @@ namespace Neanderthal
             WeaponSpawn(root, ForestHeight, -32f, 22f, "axe", 4f);
             WeaponSpawn(root, ForestHeight, 30f, 2f, "club");
             WeaponSpawn(root, ForestHeight, -30f, 0f, "knife");
+            WeaponSpawn(root, ForestHeight, 6f, -20f, "slingshot");
+            WeaponSpawn(root, ForestHeight, -8f, 34f, "obsidian_knife");
+            WeaponSpawn(root, ForestHeight, 36f, -18f, "obsidian_spear");
+            AmmoSpawn(root, ForestHeight, 4f, -24f, AmmoType.Stone, 10);
+            AmmoSpawn(root, ForestHeight, -26f, 8f, AmmoType.Stone, 10);
             AmmoSpawn(root, ForestHeight, -10f, 14f, AmmoType.Arrow, 8);
             AmmoSpawn(root, ForestHeight, 10f, 14f, AmmoType.Arrow, 8);
             AmmoSpawn(root, ForestHeight, -18f, -38f, AmmoType.Arrow, 6);
@@ -221,14 +242,21 @@ namespace Neanderthal
                 float s = 4f + (float)rnd.NextDouble() * 5f;
                 Scenery.Rock(root, new Vector3(p.x, CanyonHeight(p.x, p.z) - 2f, p.z), new Vector3(s, s * (2.5f + (float)rnd.NextDouble() * 3f), s), (float)rnd.NextDouble() * 360f, true, false, rnd.Next(4));
             }
-            foreach (var p in Scenery.Scatter(rnd, 14, new Rect(-42, -42, 84, 84), (x, z) => Mathf.Max(Mathf.Abs(x), Mathf.Abs(z)) > 25f))
+            foreach (var p in Scenery.Scatter(rnd, 14, new Rect(-42, -42, 84, 84), (x, z) => Mathf.Max(Mathf.Abs(x), Mathf.Abs(z)) > 25f && AwayFromCamps(x, z, 10f)))
             {
                 float s = 1.2f + (float)rnd.NextDouble() * 1.5f;
                 Scenery.Rock(root, new Vector3(p.x, 0f, p.z), new Vector3(s * 1.3f, s, s), (float)rnd.NextDouble() * 360f, true, false, rnd.Next(4));
             }
 
             var crnd = new System.Random(78);
-            System.Func<float, float, bool> outside = (x, z) => { float e = Mathf.Max(Mathf.Abs(x), Mathf.Abs(z)); return e > 25f && e < 47f; };
+            System.Func<float, float, bool> outside = (x, z) =>
+            {
+                float e = Mathf.Max(Mathf.Abs(x), Mathf.Abs(z));
+                var p = new Vector2(x, z);
+                return e > 25f && e < 47f && Vector2.Distance(p, CanyonCampN) > 9f && Vector2.Distance(p, CanyonCampS) > 9f;
+            };
+            Camp.Build(root, new Vector3(CanyonCampN.x, 0f, CanyonCampN.y), CanyonHeight, 7, true, 7f);
+            Camp.Build(root, new Vector3(CanyonCampS.x, 0f, CanyonCampS.y), CanyonHeight, 8, false, 6.5f);
             PropLibrary.Scatter(PropLibrary.Kind.DesertBoulder, root, crnd, 26, new Rect(-47, -47, 94, 94), CanyonHeight, outside, 0.9f, 2.2f, true);
             PropLibrary.Scatter(PropLibrary.Kind.Branches, root, crnd, 20, new Rect(-47, -47, 94, 94), CanyonHeight, outside, 1.2f, 2f, false);
             PropLibrary.Scatter(PropLibrary.Kind.Stump, root, crnd, 5, new Rect(-47, -47, 94, 94), CanyonHeight, outside, 0.8f, 1.1f, true);
@@ -292,7 +320,7 @@ namespace Neanderthal
             L.Spawns.Add(Spawn(CanyonHeight, -14f, -14f, 45f));
             L.Spawns.Add(Spawn(CanyonHeight, 14f, 14f, 225f));
 
-            WeaponSpawn(root, CanyonHeight, 0f, 0f, "crossbow", 4.1f);
+            WeaponSpawn(root, CanyonHeight, 0f, 0f, ItemDatabase.ModernWeapons ? "crossbow" : "obsidian_spear", 4.1f);
             WeaponSpawn(root, CanyonHeight, -14f, 14f, "bow");
             WeaponSpawn(root, CanyonHeight, 14f, -14f, "spear");
             WeaponSpawn(root, CanyonHeight, 0f, 0f, "axe");
@@ -300,8 +328,10 @@ namespace Neanderthal
             WeaponSpawn(root, CanyonHeight, 30f, -30f, "knife");
             AmmoSpawn(root, CanyonHeight, 0f, -20f, AmmoType.Arrow, 8, wallH);
             AmmoSpawn(root, CanyonHeight, 0f, 20f, AmmoType.Arrow, 8, wallH);
-            AmmoSpawn(root, CanyonHeight, 20f, 0f, AmmoType.Bolt, 4, wallH);
-            AmmoSpawn(root, CanyonHeight, -20f, 0f, AmmoType.Bolt, 4, wallH);
+            AmmoSpawn(root, CanyonHeight, 20f, 0f, ItemDatabase.ModernWeapons ? AmmoType.Bolt : AmmoType.Stone, ItemDatabase.ModernWeapons ? 4 : 10, wallH);
+            AmmoSpawn(root, CanyonHeight, -20f, 0f, ItemDatabase.ModernWeapons ? AmmoType.Bolt : AmmoType.Stone, ItemDatabase.ModernWeapons ? 4 : 10, wallH);
+            WeaponSpawn(root, CanyonHeight, 30f, 4f, "slingshot");
+            WeaponSpawn(root, CanyonHeight, -30f, -4f, "obsidian_axe");
             HealthSpawn(root, CanyonHeight, -26f, -6f);
             HealthSpawn(root, CanyonHeight, 26f, 6f);
             ArmorSpawn(root, CanyonHeight, 0f, -16f);

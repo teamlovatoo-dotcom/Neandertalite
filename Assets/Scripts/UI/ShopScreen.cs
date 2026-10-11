@@ -6,7 +6,7 @@ namespace Neanderthal
     /// <summary>The trader's shop: BLUEPRINTS / TOOLS / WEAPONS / GEAR / MISC / SELL, like the concept board.</summary>
     public static class ShopScreen
     {
-        public static string Tab = "КРЕСЛЕННЯ";
+        public static string Tab = ItemDatabase.ShopTabs[0];
         static Vector2 scroll;
 
         /// <param name="menuOnly">From the main menu only blueprints can be bought (no run inventory).</param>
@@ -18,12 +18,15 @@ namespace Neanderthal
             UIStyle.PanelBox(panel);
 
             UIStyle.Text(new Rect(panel.x + 36, panel.y + 26, 400, 40), UIStyle.Spaced("Магазин"), 28, Color.white, TextAnchor.MiddleLeft, true);
-            UIStyle.Text(new Rect(panel.x + 36, panel.y + 64, 600, 24), menuOnly ? "Креслення купуються назавжди: бери нову зброю в дуелі або створюй її на верстаку в тренуванні." : "Старійшина торгує дивними кресленнями з вежі.", 16, UIStyle.TextDim);
+            string sub = ItemDatabase.ModernWeapons
+                ? (menuOnly ? "Креслення купуються назавжди: бери нову зброю в дуелі або створюй її на верстаку в тренуванні." : "Старійшина торгує дивними кресленнями з вежі.")
+                : (menuOnly ? "Зброю й покращення купують у старійшини в тренуванні. Тут — що є в нього на обмін." : "Старійшина міняє зброю кам'яної доби на монети.");
+            UIStyle.Text(new Rect(panel.x + 36, panel.y + 64, 900, 24), sub, 16, UIStyle.TextDim);
             UIStyle.Coins(new Rect(panel.xMax - 336, panel.y + 26, 300, 40), Profile.Current.Coins.ToString(), 28, Color.white, true);
 
             var player = PlayerController.Instance;
-            string[] tabs = menuOnly ? new[] { "КРЕСЛЕННЯ" } : ItemDatabase.ShopTabs;
-            if (menuOnly) Tab = "КРЕСЛЕННЯ";
+            string[] tabs = menuOnly && ItemDatabase.ModernWeapons ? new[] { "КРЕСЛЕННЯ" } : ItemDatabase.ShopTabs;
+            if (System.Array.IndexOf(tabs, Tab) < 0) Tab = tabs[0];
             float ty = panel.y + 120;
             foreach (var t in tabs)
             {
@@ -47,7 +50,7 @@ namespace Neanderthal
             GUI.EndScrollView();
 
             if (UIStyle.Button(new Rect(panel.xMax - 196, panel.yMax - 60, 160, 40), "ЗАКРИТИ  [Esc]", false, true, 16)) close();
-            UIStyle.Text(new Rect(panel.x + 36, panel.yMax - 56, 700, 30), UIStyle.Spaced("Від каменю до сталі"), 14, UIStyle.TextDim, TextAnchor.MiddleLeft);
+            UIStyle.Text(new Rect(panel.x + 36, panel.yMax - 56, 700, 30), UIStyle.Spaced(ItemDatabase.ModernWeapons ? "Від каменю до сталі" : "Кам'яна доба"), 14, UIStyle.TextDim, TextAnchor.MiddleLeft);
         }
 
         static void DrawCard(Rect r, ShopEntry e, PlayerController player)
@@ -145,7 +148,7 @@ namespace Neanderthal
     {
         static string category;
         static Vector2 scroll;
-        static readonly string[] PrimitiveCats = { "Кам'яні знаряддя", "Кістяна зброя", "Вогонь", "Одяг", "Притулок" };
+        static readonly string[] PrimitiveCats = { "Кам'яні знаряддя", "Кістяна зброя", "Покращення", "Вогонь", "Одяг", "Притулок" };
 
         public static void Draw(bool workbench, System.Action close)
         {
@@ -162,6 +165,7 @@ namespace Neanderthal
             float rx = panel.x + 36;
             foreach (Resource res in System.Enum.GetValues(typeof(Resource)))
             {
+                if (res == Resource.MetalParts && !ItemDatabase.ModernWeapons) continue;
                 string s = $"{ItemDatabase.ResourceName(res)} <b>{player.Inventory.Get(res)}</b>";
                 UIStyle.Text(new Rect(rx, panel.y + 70, 170, 24), s, 16, UIStyle.TextColor);
                 rx += 170;

@@ -165,7 +165,16 @@ namespace Neanderthal
                 }
                 case PickupKind.Ammo:
                 {
-                    if (p.Ammo == AmmoType.Arrow || p.Ammo == AmmoType.Bolt)
+                    if (p.Ammo == AmmoType.Stone)
+                    {
+                        for (int i = 0; i < 5; i++)
+                        {
+                            var st = WeaponModels.Stone(root).transform;
+                            st.localPosition = new Vector3(Mathf.Cos(i * 1.3f) * 0.08f * (i % 3), 0.04f + (i == 4 ? 0.05f : 0f), Mathf.Sin(i * 1.3f) * 0.08f * (i % 3));
+                            st.localRotation = Quaternion.Euler(i * 37f, i * 71f, 0f);
+                        }
+                    }
+                    else if (p.Ammo == AmmoType.Arrow || p.Ammo == AmmoType.Bolt)
                     {
                         for (int i = 0; i < 4; i++)
                         {

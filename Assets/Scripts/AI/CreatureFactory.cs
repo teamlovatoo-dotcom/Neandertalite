@@ -79,16 +79,20 @@ namespace Neanderthal
                     c.Loot.Add((Resource.Stone, 1));
                     break;
                 case CreatureType.Duelist:
-                    c.Body = CreatureBodies.Neanderthal(go.transform, "bow", team ?? Mat.TeamRed, seed);
-                    Setup(c, Team.Enemy, 100f, walk: 2.2f, run: 5.6f, dmg: 22f, range: 2.4f, cd: 1.5f, windup: 0.4f);
+                {
+                    bool sling = Random.value < 0.35f;
+                    c.RangedWeapon = sling ? "slingshot" : "bow";
+                    c.Body = CreatureBodies.Neanderthal(go.transform, c.RangedWeapon, team ?? Mat.TeamRed, seed);
+                    Setup(c, Team.Enemy, 100f, walk: 2.2f, run: 5.6f, dmg: sling ? 17f : 22f, range: 2.4f, cd: sling ? 1.1f : 1.5f, windup: 0.4f);
                     c.Ranged = true;
-                    c.ProjectileSpeed = 55f;
+                    c.ProjectileSpeed = sling ? 44f : 55f;
                     c.Accuracy = 2.2f;
                     c.SightRange = 80f;
                     c.LeashRadius = 999f;
                     c.CoinReward = 0;
                     c.Respawns = true;
                     break;
+                }
             }
 
             health.ResetHealth(health.Max);

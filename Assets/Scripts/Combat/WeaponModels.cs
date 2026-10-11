@@ -3,15 +3,61 @@ using UnityEngine;
 namespace Neanderthal
 {
     /// <summary>
-    /// Procedural blockout models for every weapon and projectile. Forward is +Z, the grip sits at the origin.
-    /// Replace with imported meshes by returning your prefab instance from <see cref="Build"/>.
+    /// Weapon and projectile models. Forward is +Z, the grip sits at the origin. Stone-age weapons use the detailed
+    /// Blender models (Resources/Models/Weapons, made by Tools/blender/make_weapons.py); the rest are blockouts.
     /// </summary>
     public static class WeaponModels
     {
         static readonly Quaternion ToForward = Quaternion.Euler(90f, 0f, 0f);
+        const string Dir = "Models/Weapons/";
+
+        /// <summary>Blender model used for a weapon id (obsidian variants share the flint model).</summary>
+        public static string ModelName(string id)
+        {
+            switch (id)
+            {
+                case "knife": case "obsidian_knife": return "knife";
+                case "spear": case "obsidian_spear": return "spear";
+                case "axe": case "obsidian_axe": return "axe";
+                case "bone_dagger": case "stick": case "club": case "torch": case "bow": case "slingshot": case "stone": return id;
+                default: return null;
+            }
+        }
+
+        public static bool IsObsidian(string id) => id != null && id.StartsWith("obsidian");
+
+        static Material sinewMat, bandMat;
+        static Material Sinew => sinewMat != null ? sinewMat : (sinewMat = ModelKit.For("sinew"));
+        static Material Band => bandMat != null ? bandMat : (bandMat = ModelKit.For("leather"));
+
+        static GameObject BuildDetailed(string id, Transform parent, out BowString bowString)
+        {
+            bowString = null;
+            string model = ModelName(id);
+            if (model == null) return null;
+            var go = ModelKit.Spawn(Dir + model, parent, out var info, IsObsidian(id));
+            if (go == null) return null;
+            go.name = "Model_" + id;
+            var t = go.transform;
+            switch (model)
+            {
+                case "bow":
+                    bowString = BowString.Create(t, info.Point("NockA", new Vector3(0, 0.55f, -0.12f)), info.Point("NockB", new Vector3(0, -0.55f, -0.12f)), Sinew, 0.62f);
+                    break;
+                case "slingshot":
+                    bowString = BowString.Create(t, info.Point("NockA", new Vector3(0.048f, 0.137f, 0f)), info.Point("NockB", new Vector3(-0.048f, 0.137f, 0f)), Band, 0.36f, pouch: true);
+                    break;
+                case "torch":
+                    FireFx.Fire(t, info.Point("Flame", new Vector3(0, 0, 0.5f)), 0.24f, false, true);
+                    break;
+            }
+            return go;
+        }
 
         public static GameObject Build(string id, Transform parent, out BowString bowString)
         {
+            var detailed = BuildDetailed(id, parent, out bowString);
+            if (detailed != null) return detailed;
             bowString = null;
             var root = new GameObject("Model_" + id);
             root.transform.SetParent(parent, false);
@@ -32,7 +78,24 @@ namespace Neanderthal
                     Shapes.Box(t, new Vector3(0f, 0f, 0.05f), new Vector3(0.09f, 0.09f, 0.11f), Mat.Get(Mat.Skin), null, false);
                     break;
 
+                case "stone":
+                    Shapes.Ball(t, Vector3.zero, new Vector3(0.075f, 0.06f, 0.07f), Mat.Get(Mat.Stone), false);
+                    break;
+
+                case "stick":
+                    Shapes.Stick(t, new Vector3(0, 0, -0.2f), new Vector3(0, 0, 0.85f), 0.04f, Mat.Get(Mat.Bark));
+                    break;
+
+                case "slingshot":
+                    Shapes.Stick(t, new Vector3(0, -0.11f, 0), new Vector3(0, 0.04f, 0), 0.032f, wood);
+                    Shapes.Stick(t, new Vector3(0, 0.035f, 0), new Vector3(0.05f, 0.155f, 0), 0.026f, wood);
+                    Shapes.Stick(t, new Vector3(0, 0.035f, 0), new Vector3(-0.05f, 0.155f, 0), 0.026f, wood);
+                    bowString = BowString.Create(t, new Vector3(0.048f, 0.137f, 0f), new Vector3(-0.048f, 0.137f, 0f), leather, 0.36f, pouch: true);
+                    break;
+
                 case "knife":
+                case "obsidian_knife":
+                    if (IsObsidian(id)) flint = Mat.Get(new Color(0.05f, 0.05f, 0.06f), 0.9f);
                     Shapes.Stick(t, new Vector3(0, 0, -0.06f), new Vector3(0, 0, 0.06f), 0.032f, woodDark);
                     Shapes.Cone(t, new Vector3(0, 0, 0.06f), new Vector3(0.045f, 0.2f, 0.015f), flint, ToForward, 4);
                     Shapes.Stick(t, new Vector3(0, 0, 0.045f), new Vector3(0, 0, 0.075f), 0.04f, leather);
@@ -53,6 +116,8 @@ namespace Neanderthal
                     break;
 
                 case "axe":
+                case "obsidian_axe":
+                    if (IsObsidian(id)) flint = Mat.Get(new Color(0.05f, 0.05f, 0.06f), 0.9f);
                     Shapes.Stick(t, new Vector3(0, 0, -0.1f), new Vector3(0, 0, 0.45f), 0.04f, wood);
                     Shapes.Box(t, new Vector3(0, 0.07f, 0.4f), new Vector3(0.05f, 0.18f, 0.12f), flint, Quaternion.Euler(0, 0, 0), false);
                     Shapes.Cone(t, new Vector3(0, 0.15f, 0.4f), new Vector3(0.12f, 0.08f, 0.05f), flint, null, 4);
@@ -66,6 +131,8 @@ namespace Neanderthal
                     break;
 
                 case "spear":
+                case "obsidian_spear":
+                    if (IsObsidian(id)) flint = Mat.Get(new Color(0.05f, 0.05f, 0.06f), 0.9f);
                     Shapes.Stick(t, new Vector3(0, 0, -0.9f), new Vector3(0, 0, 0.9f), 0.035f, wood);
                     Shapes.Cone(t, new Vector3(0, 0, 0.88f), new Vector3(0.06f, 0.24f, 0.025f), flint, ToForward, 4);
                     Shapes.Stick(t, new Vector3(0, 0, 0.84f), new Vector3(0, 0, 0.93f), 0.045f, sinew);
@@ -146,8 +213,24 @@ namespace Neanderthal
             return root;
         }
 
+        /// <summary>A throwing / slingshot stone, centred on the origin.</summary>
+        public static GameObject Stone(Transform parent)
+        {
+            var go = ModelKit.Spawn(Dir + "stone", parent, out _);
+            if (go != null) { go.name = "Stone"; return go; }
+            var root = new GameObject("Stone");
+            root.transform.SetParent(parent, false);
+            Shapes.Ball(root.transform, Vector3.zero, new Vector3(0.075f, 0.06f, 0.07f), Mat.Get(Mat.Stone), false);
+            return root;
+        }
+
         public static GameObject Arrow(Transform parent, bool bolt)
         {
+            if (!bolt)
+            {
+                var go = ModelKit.Spawn(Dir + "arrow", parent, out _);
+                if (go != null) { go.name = "Arrow"; return go; }
+            }
             var root = new GameObject(bolt ? "Bolt" : "Arrow");
             root.transform.SetParent(parent, false);
             var t = root.transform;
