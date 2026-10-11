@@ -8,6 +8,12 @@ namespace Neanderthal
     public class Inventory : MonoBehaviour
     {
         public readonly List<string> Weapons = new List<string>();
+        /// <summary>
+        /// Hotbar order: key 1 picks Hotbar[0], key 2 Hotbar[1]... Fists are always present. A weapon that left the
+        /// inventory (a thrown spear) keeps its slot as a dim "ghost" so it returns to the same key when picked up.
+        /// </summary>
+        public readonly List<string> Hotbar = new List<string>();
+        public const int HotbarSize = 9;
         readonly Dictionary<AmmoType, int> ammo = new Dictionary<AmmoType, int>();
         readonly Dictionary<Resource, int> resources = new Dictionary<Resource, int>();
 
@@ -20,6 +26,39 @@ namespace Neanderthal
         public static void Notify(string msg) => Feed?.Invoke(msg, new Color(0.9f, 0.85f, 0.7f));
 
         public bool HasWeapon(string id) => Weapons.Contains(id);
+        /// <summary>True when the weapon in a hotbar slot can be taken in hand right now.</summary>
+        public bool Holds(string id) => id == "fists" || Weapons.Contains(id);
+
+        public void EnsureHotbar()
+        {
+            if (!Hotbar.Contains("fists")) Hotbar.Insert(0, "fists");
+            foreach (var w in Weapons) if (!Hotbar.Contains(w)) PlaceInHotbar(w);
+        }
+
+        void PlaceInHotbar(string id)
+        {
+            if (Hotbar.Contains(id)) return;
+            int empty = Hotbar.IndexOf("");
+            if (empty >= 0) { Hotbar[empty] = id; return; }
+            Hotbar.Add(id);
+            // Keep the first nine keys for weapons you actually carry: drop the oldest ghost if we overflow.
+            if (Hotbar.Count > HotbarSize)
+            {
+                int ghost = Hotbar.FindIndex(h => !Holds(h));
+                if (ghost >= 0) Hotbar.RemoveAt(ghost);
+            }
+        }
+
+        public void SwapHotbar(int a, int b)
+        {
+            EnsureHotbar();
+            if (a < 0 || b < 0 || a == b) return;
+            while (Hotbar.Count <= Mathf.Max(a, b)) Hotbar.Add("");
+            (Hotbar[a], Hotbar[b]) = (Hotbar[b], Hotbar[a]);
+            // Trailing empty cells are pointless.
+            while (Hotbar.Count > 0 && Hotbar[Hotbar.Count - 1] == "") Hotbar.RemoveAt(Hotbar.Count - 1);
+            Changed?.Invoke();
+        }
 
         public void AddWeapon(string id, bool announce = true)
         {
@@ -32,6 +71,8 @@ namespace Neanderthal
                 return;
             }
             Weapons.Add(id);
+            EnsureHotbar();
+            PlaceInHotbar(id);
             if (data.Ammo != AmmoType.None && GetAmmo(data.Ammo) == 0)
                 AddAmmo(data.Ammo, data.MagSize > 0 ? data.MagSize * 2 : 8, false);
             if (announce) Notify("+ " + data.Name, new Color(1f, 0.8f, 0.4f));
@@ -88,6 +129,7 @@ namespace Neanderthal
         public void Clear()
         {
             Weapons.Clear();
+            Hotbar.Clear();
             ammo.Clear();
             resources.Clear();
             Changed?.Invoke();

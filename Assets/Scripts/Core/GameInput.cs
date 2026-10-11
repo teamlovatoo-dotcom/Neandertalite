@@ -40,6 +40,8 @@ namespace Neanderthal
         public static bool ReloadDown => Down(Key.R);
         public static bool InteractDown => Down(Key.E);
         public static bool CraftingDown => Down(Key.Tab);
+        public static bool InventoryDown => Down(Key.I);
+        public static bool DebugDown => Down(Key.F3);
         public static bool HealDown => Down(Key.H);
         public static bool PauseDown => Down(Key.Escape);
         public static bool SlotDown(int slot)
@@ -86,6 +88,8 @@ namespace Neanderthal
         public static bool ReloadDown => Input.GetKeyDown(KeyCode.R);
         public static bool InteractDown => Input.GetKeyDown(KeyCode.E);
         public static bool CraftingDown => Input.GetKeyDown(KeyCode.Tab);
+        public static bool InventoryDown => Input.GetKeyDown(KeyCode.I);
+        public static bool DebugDown => Input.GetKeyDown(KeyCode.F3);
         public static bool HealDown => Input.GetKeyDown(KeyCode.H);
         public static bool PauseDown => Input.GetKeyDown(KeyCode.Escape);
         public static bool SlotDown(int slot) => slot >= 1 && slot <= 9 && Input.GetKeyDown(KeyCode.Alpha0 + slot);

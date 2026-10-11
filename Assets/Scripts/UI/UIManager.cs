@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace Neanderthal
 {
-    public enum UIScreen { MainMenu, Settings, DuelSetup, MenuShop, Hud, Shop, Crafting, Pause, Result }
+    public enum UIScreen { MainMenu, Settings, DuelSetup, MenuShop, Hud, Shop, Crafting, Pause, Result, Inventory }
 
     /// <summary>Owns which screen is visible, cursor locking and pausing. All drawing is IMGUI.</summary>
     public class UIManager : MonoBehaviour
@@ -48,15 +48,26 @@ namespace Neanderthal
             Sfx.Play2D("click");
         }
 
+        static bool PlayerDead => PlayerController.Instance != null && PlayerController.Instance.Health.IsDead;
+
         void Update()
         {
+            WeaponIcons.Pump();
             bool inGame = GameManager.Instance != null && GameManager.Instance.Mode != GameMode.Menu;
 
             // The key that opened a screen this frame must not also close it.
             if (Time.frameCount == shownFrame) { }
             else if (inGame)
             {
+                bool survival = GameManager.Instance.Mode == GameMode.Survival;   // there Tab is crafting
                 if (Screen == UIScreen.Hud && GameInput.PauseDown) Show(UIScreen.Pause);
+                else if (Screen == UIScreen.Hud && (GameInput.InventoryDown || GameInput.CraftingDown && !survival) && !PlayerDead)
+                {
+                    InventoryScreen.Reset();
+                    Show(UIScreen.Inventory);
+                }
+                else if (Screen == UIScreen.Inventory && (GameInput.PauseDown || GameInput.InventoryDown || GameInput.CraftingDown || PlayerDead))
+                    Show(UIScreen.Hud);
                 else if ((Screen == UIScreen.Shop || Screen == UIScreen.Crafting) && (GameInput.PauseDown || GameInput.CraftingDown || GameInput.InteractDown && Screen == UIScreen.Shop))
                     Show(UIScreen.Hud);
                 else if (Screen == UIScreen.Pause && GameInput.PauseDown) Show(UIScreen.Hud);
@@ -95,6 +106,7 @@ namespace Neanderthal
                 case UIScreen.MenuShop: ShopScreen.Draw(true, () => Show(UIScreen.MainMenu)); break;
                 case UIScreen.Shop: ShopScreen.Draw(false, () => Show(UIScreen.Hud)); break;
                 case UIScreen.Crafting: CraftingScreen.Draw(workbench, () => Show(UIScreen.Hud)); break;
+                case UIScreen.Inventory: InventoryScreen.Draw(() => Show(UIScreen.Hud)); break;
                 case UIScreen.Pause: Menus.DrawPause(); break;
                 case UIScreen.Result: Menus.DrawResult(ResultTitle, ResultBody); break;
             }

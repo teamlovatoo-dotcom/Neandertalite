@@ -96,8 +96,8 @@ namespace Neanderthal
             }
             if (p.Oxygen < p.MaxOxygen - 0.01f)
             {
-                UIStyle.Text(new Rect(W * 0.5f - 120, H - 150, 240, 20), UIStyle.Spaced("повітря"), 13, new Color(0.7f, 0.9f, 1f), TextAnchor.MiddleCenter);
-                UIStyle.Bar(new Rect(W * 0.5f - 120, H - 128, 240, 6), p.Oxygen / p.MaxOxygen, p.Oxygen < 3f ? UIStyle.Bad : new Color(0.55f, 0.85f, 1f));
+                UIStyle.Text(new Rect(W * 0.5f - 120, H - 215, 240, 20), UIStyle.Spaced("повітря"), 13, new Color(0.7f, 0.9f, 1f), TextAnchor.MiddleCenter);
+                UIStyle.Bar(new Rect(W * 0.5f - 120, H - 193, 240, 6), p.Oxygen / p.MaxOxygen, p.Oxygen < 3f ? UIStyle.Bad : new Color(0.55f, 0.85f, 1f));
             }
 
             // Damage vignette
@@ -123,6 +123,7 @@ namespace Neanderthal
             DrawHurtDirections(p, W, H);
             DrawVitals(p, H);
             DrawAmmo(p, W, H);
+            DrawHotbar(p, W, H);
             DrawRadar(p, W);
             DrawResources(p, W);
             DrawFeed(H);
@@ -392,19 +393,82 @@ namespace Neanderthal
                 string text = numeric ? $"{ammo} <size=22><color=#9aa0a6>| {reserve}</color></size>" : $"{ammo} <size=18><color=#9aa0a6>{reserve.ToUpperInvariant()}</color></size>";
                 UIStyle.Shadowed(new Rect(x, y, 300, 50), text, 40, Color.white, TextAnchor.MiddleRight, true);
             }
-            // Weapon slots strip
-            var list = p.Inventory.Weapons;
-            float sx = W - 40;
-            for (int i = list.Count - 1; i >= 0; i--)
+        }
+
+        static string shownWeapon;
+        static float weaponShownTime = -9f;
+
+        /// <summary>
+        /// Bottom-centre hotbar like modern shooters: one cell per key 1-9 with the weapon's icon, the key number and its
+        /// ammo; the weapon in hand is lifted and outlined. Thrown weapons stay as dim ghosts until picked up again.
+        /// </summary>
+        static void DrawHotbar(PlayerController p, float W, float H)
+        {
+            var inv = p.Inventory;
+            inv.EnsureHotbar();
+            var bar = inv.Hotbar;
+            int n = Mathf.Clamp(bar.Count, 1, Inventory.HotbarSize);
+            float gap = 8f;
+            float cell = Mathf.Clamp((W - 900f) / n - gap, 54f, 86f);
+            float total = n * (cell + gap) - gap;
+            float x0 = W * 0.5f - total * 0.5f, y0 = H - cell - 22f;
+            string cur = p.Weapons.CurrentId;
+
+            if (cur != shownWeapon) { shownWeapon = cur; weaponShownTime = Time.unscaledTime; }
+            float nameA = Mathf.Clamp01(2.2f - (Time.unscaledTime - weaponShownTime));
+            var curData = cur != null ? ItemDatabase.Weapon(cur) : null;
+            if (nameA > 0.01f && curData != null)
+                UIStyle.Shadowed(new Rect(0, y0 - 44, W, 30), curData.Name.ToUpperInvariant(), 22, new Color(1f, 1f, 1f, nameA), TextAnchor.MiddleCenter, true);
+
+            for (int i = 0; i < n; i++)
+                DrawHotbarCell(p, i < bar.Count ? bar[i] : "", i, new Rect(x0 + i * (cell + gap), y0, cell, cell), cur, true);
+        }
+
+        /// <summary>One hotbar cell (also used by the inventory screen).</summary>
+        public static void DrawHotbarCell(PlayerController p, string id, int index, Rect r, string current, bool lift, bool picked = false)
+        {
+            var inv = p.Inventory;
+            bool empty = string.IsNullOrEmpty(id);
+            bool held = !empty && inv.Holds(id);
+            bool sel = !empty && id == current;
+            if (sel && lift) r.y -= 6f;
+
+            UIStyle.Rect(r, sel ? new Color(0.13f, 0.16f, 0.2f, 0.9f) : new Color(0.05f, 0.055f, 0.06f, empty ? 0.35f : 0.62f));
+            if (sel)
             {
-                var d = ItemDatabase.Weapon(list[i]);
-                string label = d.Slot + " " + d.Name;
-                float wdt = 12 + label.Length * 8.5f;
-                sx -= wdt + 6;
-                bool cur = list[i] == p.Weapons.CurrentId;
-                UIStyle.Rect(new Rect(sx, H - 44, wdt, 24), cur ? new Color(0.2f, 0.42f, 0.75f, 0.85f) : new Color(0, 0, 0, 0.35f));
-                UIStyle.Text(new Rect(sx, H - 44, wdt, 24), label, 14, cur ? Color.white : UIStyle.TextDim, TextAnchor.MiddleCenter);
+                UIStyle.Outline(r, UIStyle.Accent, 2f);
+                UIStyle.Rect(new Rect(r.x, r.yMax - 3, r.width, 3), UIStyle.Accent);
             }
+            else UIStyle.Outline(r, picked ? UIStyle.Gold : UIStyle.Line, picked ? 2f : 1f);
+
+            if (!empty)
+            {
+                var data = ItemDatabase.Weapon(id);
+                var icon = WeaponIcons.Get(id);
+                float alpha = held ? 1f : 0.25f;
+                if (icon != null)
+                {
+                    var oc = GUI.color;
+                    GUI.color = new Color(1f, 1f, 1f, alpha);
+                    float pad = r.width * 0.1f;
+                    GUI.DrawTexture(new Rect(r.x + pad, r.y + pad, r.width - pad * 2, r.height - pad * 2), icon, ScaleMode.ScaleToFit, true);
+                    GUI.color = oc;
+                }
+                else if (data != null)
+                {
+                    UIStyle.Text(new Rect(r.x + 3, r.y, r.width - 6, r.height), data.Name, Mathf.RoundToInt(r.width * 0.16f), new Color(0.85f, 0.85f, 0.8f, alpha), TextAnchor.MiddleCenter);
+                }
+
+                // Ammo in the corner (red at zero).
+                if (data != null && data.Ammo != AmmoType.None)
+                {
+                    int a = inv.GetAmmo(data.Ammo);
+                    if (data.MagSize > 0 && sel && p.Weapons.Current != null && int.TryParse(p.Weapons.Current.AmmoText, out int mag)) a = mag;
+                    UIStyle.Shadowed(new Rect(r.x, r.yMax - 22, r.width - 6, 20), a.ToString(), 15, a > 0 ? Color.white : UIStyle.Bad, TextAnchor.LowerRight, true);
+                }
+                if (!held) UIStyle.Text(new Rect(r.x, r.yMax - 20, r.width, 18), "немає", 11, UIStyle.TextDim, TextAnchor.LowerCenter);
+            }
+            UIStyle.Shadowed(new Rect(r.x + 5, r.y + 2, 20, 20), (index + 1).ToString(), 14, sel ? Color.white : UIStyle.TextDim, TextAnchor.UpperLeft, true);
         }
 
         static void DrawRadar(PlayerController p, float W)

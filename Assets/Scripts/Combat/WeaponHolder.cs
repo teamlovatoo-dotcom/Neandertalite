@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Neanderthal
 {
     /// <summary>
-    /// Owns the first-person viewmodel: weapon switching (1-5 / scroll), view bob, sway and FOV zoom.
+    /// Owns the first-person viewmodel: weapon switching (hotbar keys 1-9 / scroll), view bob, sway and FOV zoom.
     /// Lives on the player; the actual weapon behaviours are plain classes in Weapons.cs.
     /// </summary>
     public class WeaponHolder : MonoBehaviour
@@ -96,41 +96,34 @@ namespace Neanderthal
             return "fists";
         }
 
-        List<string> Ordered()
-        {
-            var list = new List<string>(Player.Inventory.Weapons);
-            if (!list.Contains("fists")) list.Insert(0, "fists");
-            list.Sort((a, b) =>
-            {
-                var da = ItemDatabase.Weapon(a); var db = ItemDatabase.Weapon(b);
-                int c = da.Slot.CompareTo(db.Slot);
-                return c != 0 ? c : string.CompareOrdinal(a, b);
-            });
-            return list;
-        }
-
+        /// <summary>Keys 1-9 pick that hotbar cell; the mouse wheel steps through the weapons you carry.</summary>
         void HandleSwitchInput()
         {
-            var list = Ordered();
-            if (list.Count == 0) return;
+            var inv = Player.Inventory;
+            inv.EnsureHotbar();
+            var bar = inv.Hotbar;
             string cur = pendingSwitch ?? CurrentId;
-            for (int slot = 1; slot <= 5; slot++)
+            for (int slot = 1; slot <= Inventory.HotbarSize; slot++)
             {
                 if (!GameInput.SlotDown(slot)) continue;
-                var inSlot = list.FindAll(w => ItemDatabase.Weapon(w).Slot == slot);
-                if (inSlot.Count == 0) { Sfx.Play2D("deny", 0.4f); return; }
-                int idx = inSlot.IndexOf(cur);
-                SwitchTo(inSlot[(idx + 1) % inSlot.Count]);
-                Sfx.Play2D("click");
+                int i = slot - 1;
+                if (i >= bar.Count || !inv.Holds(bar[i])) { Sfx.Play2D("deny", 0.4f); return; }
+                if (bar[i] != cur) { SwitchTo(bar[i]); Sfx.Play2D("click"); }
                 return;
             }
             float scroll = GameInput.Scroll;
             if (scroll != 0f)
             {
-                int idx = Mathf.Max(0, list.IndexOf(cur));
-                idx = (idx - (int)scroll + list.Count) % list.Count;
-                SwitchTo(list[idx]);
-                Sfx.Play2D("click");
+                int n = bar.Count;
+                int idx = Mathf.Max(0, bar.IndexOf(cur));
+                for (int step = 1; step <= n; step++)
+                {
+                    int j = ((idx - (int)scroll * step) % n + n) % n;
+                    if (!inv.Holds(bar[j]) || bar[j] == cur) continue;
+                    SwitchTo(bar[j]);
+                    Sfx.Play2D("click");
+                    break;
+                }
             }
         }
 
