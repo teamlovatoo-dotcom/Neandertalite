@@ -720,6 +720,7 @@ namespace Neanderthal
                     Body.PoseSmooth(Body.ForeL, new Vector3(-5f, 0f, 0f), dt * 10f);
                     Body.PoseSmooth(Body.ForeR, new Vector3(-40f - 70f * attackPose, 0f, 0f), dt * 10f);
                     Body.PoseSmooth(Body.Spine, new Vector3(0f, 25f, 0f), dt * 8f);
+                    Body.Pose(Body.Chest, new Vector3(breath, 0f, 0f));
                 }
                 else if (windup >= 0f)
                 {
