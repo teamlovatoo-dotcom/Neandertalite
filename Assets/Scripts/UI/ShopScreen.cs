@@ -19,7 +19,7 @@ namespace Neanderthal
 
             UIStyle.Text(new Rect(panel.x + 36, panel.y + 26, 400, 40), UIStyle.Spaced("Магазин"), 28, Color.white, TextAnchor.MiddleLeft, true);
             UIStyle.Text(new Rect(panel.x + 36, panel.y + 64, 600, 24), menuOnly ? "Креслення купуються назавжди: бери нову зброю в дуелі або створюй її на верстаку в тренуванні." : "Старійшина торгує дивними кресленнями з вежі.", 16, UIStyle.TextDim);
-            UIStyle.Text(new Rect(panel.xMax - 336, panel.y + 26, 300, 40), $"<color=#ffd15a>◆</color> {Profile.Current.Coins}", 28, Color.white, TextAnchor.MiddleRight, true);
+            UIStyle.Coins(new Rect(panel.xMax - 336, panel.y + 26, 300, 40), Profile.Current.Coins.ToString(), 28, Color.white, true);
 
             var player = PlayerController.Instance;
             string[] tabs = menuOnly ? new[] { "КРЕСЛЕННЯ" } : ItemDatabase.ShopTabs;
@@ -64,7 +64,7 @@ namespace Neanderthal
 
             UIStyle.Text(new Rect(r.x + 14, r.y + 10, r.width - 28, 26), e.Name, 19, Color.white, TextAnchor.MiddleLeft, true);
             string price = e.Kind == ShopKind.SellResource ? $"+{e.Price} за шт." : e.Price.ToString();
-            UIStyle.Text(new Rect(r.x + 14, r.y + 36, r.width - 28, 22), $"<color=#ffd15a>◆</color> {price}", 16, UIStyle.TextColor, TextAnchor.MiddleLeft);
+            UIStyle.Coins(new Rect(r.x + 14, r.y + 36, r.width - 28, 22), price, 16, UIStyle.TextColor);
 
             string desc = e.Description;
             if (desc == null && e.Kind == ShopKind.Weapon) desc = ItemDatabase.Weapon(e.WeaponId)?.Description;

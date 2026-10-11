@@ -127,7 +127,7 @@ namespace Neanderthal
             {
                 killer.Kills++;
                 if (killer == me) Profile.Current.Earn(10);
-                Inventory.Notify($"{killer.Name}  →  {victim.Name}", killer == me ? UIStyle.Gold : UIStyle.TextColor);
+                Inventory.Notify($"{killer.Name}  »  {victim.Name}", killer == me ? UIStyle.Gold : UIStyle.TextColor);
             }
             else
             {

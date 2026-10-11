@@ -25,35 +25,127 @@ namespace Neanderthal
         static readonly string[] Melees = { "knife", "club", "axe", "bone_dagger", "torch" };
         static bool confirmReset;
 
+        static readonly float[] hover = new float[8];
+
         public static void DrawMainMenu()
         {
             float W = UIStyle.Width, H = UIStyle.Height;
-            // Left-side gradient so the title reads over the 3D backdrop.
-            var old = GUI.color;
-            GUI.color = new Color(0.03f, 0.03f, 0.04f, 0.85f);
-            GUI.DrawTexture(new Rect(0, 0, 900, H), UIStyle.FadeRight);
-            GUI.color = old;
 
-            UIStyle.Shadowed(new Rect(80, 120, 900, 120), "НЕАНДЕРТАЛЕЦЬ", 104, new Color(0.85f, 0.84f, 0.8f), TextAnchor.MiddleLeft, true);
-            UIStyle.Shadowed(new Rect(88, 236, 900, 40), UIStyle.Spaced("Дуелі  //  Мультиплеєр"), 22, UIStyle.TextColor, TextAnchor.MiddleLeft);
+            // Cinematic grading over the 3D backdrop: dark left side, soft top and bottom bands.
+            UIStyle.Icon(new Rect(0, 0, 1150, H), UIStyle.FadeRight, new Color(0.02f, 0.025f, 0.03f, 0.92f));
+            UIStyle.Icon(new Rect(0, H - 260, W, 260), UIStyle.FadeUp, new Color(0.02f, 0.025f, 0.03f, 0.85f));
+            UIStyle.IconFlipped(new Rect(0, 0, W, 160), UIStyle.FadeUp, new Color(0.02f, 0.025f, 0.03f, 0.6f));
 
-            float y = 340;
-            float x = 88;
-            if (UIStyle.Button(new Rect(x, y, 380, 56), "ГРАТИ  —  БІЙ НА АРЕНІ", true, true, 20)) UIManager.Instance.Show(UIScreen.DuelSetup);
-            y += 70;
-            if (UIStyle.Button(new Rect(x, y, 380, 56), "ТРЕНУВАННЯ  —  ДОЛИНА", false, true, 20)) GameManager.Instance.StartSurvival();
-            y += 70;
-            if (UIStyle.Button(new Rect(x, y, 380, 56), "МАГАЗИН / КРЕСЛЕННЯ", false, true, 20)) UIManager.Instance.Show(UIScreen.MenuShop);
-            y += 70;
-            if (UIStyle.Button(new Rect(x, y, 380, 56), "НАЛАШТУВАННЯ", false, true, 20)) UIManager.Instance.OpenSettings(UIScreen.MainMenu);
-            y += 70;
-            if (UIStyle.Button(new Rect(x, y, 380, 56), "ВИХІД", false, true, 20)) GameManager.Instance.Quit();
+            float logoW = DrawLogo(new Vector2(96, 64), 150);
+            var sub = UIStyle.Label(24, new Color(0.82f, 0.83f, 0.84f), TextAnchor.MiddleCenter, UIStyle.FontRegular);
+            GUI.Label(new Rect(96 + 150 * 0.54f, 262, logoW, 36), UIStyle.Spaced("Дуелі   //   Мультиплеєр"), sub);
+
+            float x = 104, y = 380;
+            if (MenuItem(new Rect(x, y, 520, 66), 0, "Грати", "дуель 1 на 1  ·  усі проти всіх", true)) UIManager.Instance.Show(UIScreen.DuelSetup);
+            y += 74;
+            if (MenuItem(new Rect(x, y, 520, 66), 1, "Тренування", "долина, крафт, полювання")) GameManager.Instance.StartSurvival();
+            y += 74;
+            if (MenuItem(new Rect(x, y, 520, 66), 2, "Магазин", "креслення сучасної зброї")) UIManager.Instance.Show(UIScreen.MenuShop);
+            y += 74;
+            if (MenuItem(new Rect(x, y, 520, 66), 3, "Налаштування", null)) UIManager.Instance.OpenSettings(UIScreen.MainMenu);
+            y += 74;
+            if (MenuItem(new Rect(x, y, 520, 66), 4, "Вихід", null)) GameManager.Instance.Quit();
+
+            // Stacked tagline, as on the concept boards.
+            var tag = UIStyle.Label(20, new Color(0.85f, 0.86f, 0.86f, 0.8f), TextAnchor.MiddleLeft, UIStyle.FontLight);
+            string[] words = { "Первісні", "навички", "сучасний", "вибір" };
+            for (int i = 0; i < words.Length; i++)
+                GUI.Label(new Rect(110, H - 300 + i * 32, 400, 30), UIStyle.Spaced(words[i]), tag);
 
             var prof = Profile.Current;
-            UIStyle.Shadowed(new Rect(x, H - 150, 600, 30), $"<color=#ffd15a>◆</color> {prof.Coins} монет     Креслення: {prof.Blueprints.Count}/8     Дуелі: {prof.DuelWins} перемог / {prof.DuelLosses} поразок", 18, UIStyle.TextColor);
-            if (prof.ChapterOneComplete) UIStyle.Shadowed(new Rect(x, H - 120, 600, 30), "Розділ 1 пройдено", 16, UIStyle.Gold);
-            UIStyle.Shadowed(new Rect(x, H - 70, 900, 30), "WASD рух · Shift біг · Ctrl присід · Пробіл стрибок · ЛКМ атака · ПКМ приціл/кидок · R перезарядка · E дія · Tab крафт · H лікування · 1-5 зброя", 15, UIStyle.TextDim);
-            UIStyle.Shadowed(new Rect(W - 400, H - 70, 360, 30), UIStyle.Spaced("Первісні навички. Сучасний вибір."), 14, UIStyle.TextDim, TextAnchor.MiddleRight);
+            UIStyle.Coins(new Rect(110, H - 120, 200, 30), prof.Coins.ToString(), 20, Color.white, false, true);
+            var stat = UIStyle.Label(16, UIStyle.TextDim, TextAnchor.MiddleLeft, UIStyle.FontRegular);
+            GUI.Label(new Rect(110, H - 86, 900, 26), UIStyle.Spaced($"креслення {prof.Blueprints.Count}/8   ·   перемоги {prof.DuelWins}   ·   поразки {prof.DuelLosses}"), stat);
+
+            var corner = UIStyle.Label(15, new Color(0.8f, 0.8f, 0.8f, 0.75f), TextAnchor.MiddleRight, UIStyle.FontLight);
+            GUI.Label(new Rect(W - 420, H - 120, 360, 24), UIStyle.Spaced("Від каменю"), corner);
+            GUI.Label(new Rect(W - 420, H - 94, 360, 24), UIStyle.Spaced("до сталі"), corner);
+            UIStyle.Rect(new Rect(W - 120, H - 62, 60, 1), new Color(1f, 1f, 1f, 0.5f));
+        }
+
+        /// <summary>
+        /// The NEANDERTHAL wordmark: three claw scratches and brushed-steel lettering with a dark rim.
+        /// Returns the width of the lettering.
+        /// </summary>
+        public static float DrawLogo(Vector2 pos, int size)
+        {
+            const string word = "NEANDERTHAL";
+            var font = UIStyle.FontBold;
+            float clawW = size * 0.5f;
+            float tx = pos.x + clawW + size * 0.04f;
+            var measure = UIStyle.Label(size, Color.white, TextAnchor.UpperLeft, font);
+            Vector2 sz = measure.CalcSize(new GUIContent(word));
+            Rect r = new Rect(tx, pos.y, sz.x + 10, sz.y);
+
+            // Claw marks, leaning like "///".
+            var m = GUI.matrix;
+            float clawH = size * 1.05f;
+            for (int i = 0; i < 3; i++)
+            {
+                Vector2 c = new Vector2(pos.x + clawW * 0.25f + i * clawW * 0.32f, pos.y + sz.y * 0.52f);
+                GUIUtility.RotateAroundPivot(24f, c * UIStyle.Scale);
+                var cr = new Rect(c.x - clawW * 0.13f, c.y - clawH * 0.5f + (i - 1) * size * 0.05f, clawW * 0.26f, clawH);
+                UIStyle.Icon(new Rect(cr.x + 3, cr.y + 4, cr.width, cr.height), UIStyle.Claw, new Color(0f, 0f, 0f, 0.55f));
+                UIStyle.Icon(cr, UIStyle.Claw, new Color(0.88f, 0.88f, 0.86f, 0.95f));
+                GUI.matrix = m;
+            }
+
+            // Drop shadow + dark rim
+            GUI.Label(new Rect(r.x + 6, r.y + 8, r.width, r.height), word, UIStyle.Label(size, new Color(0f, 0f, 0f, 0.5f), TextAnchor.UpperLeft, font));
+            var rim = UIStyle.Label(size, new Color(0.05f, 0.05f, 0.06f, 0.95f), TextAnchor.UpperLeft, font);
+            for (int i = 0; i < 8; i++)
+            {
+                float a = i * Mathf.PI / 4f;
+                GUI.Label(new Rect(r.x + Mathf.Cos(a) * 2.5f, r.y + Mathf.Sin(a) * 2.5f, r.width, r.height), word, rim);
+            }
+            // Steel: darker base, bright upper band clipped by a group, thin specular line.
+            GUI.Label(r, word, UIStyle.Label(size, new Color(0.52f, 0.53f, 0.55f), TextAnchor.UpperLeft, font));
+            // Oswald: ascent 1.193em, cap height 0.81em -> caps span 25.8%..80.5% of the line.
+            float capTop = r.y + sz.y * 0.258f, capH = sz.y * 0.547f;
+            GUI.BeginGroup(new Rect(r.x, r.y, r.width, capTop - r.y + capH * 0.48f));
+            GUI.Label(new Rect(0, 0, r.width, r.height), word, UIStyle.Label(size, new Color(0.86f, 0.86f, 0.85f), TextAnchor.UpperLeft, font));
+            GUI.EndGroup();
+            GUI.BeginGroup(new Rect(r.x, capTop + capH * 0.46f, r.width, 3));
+            GUI.Label(new Rect(0, -(capTop + capH * 0.46f - r.y), r.width, r.height), word, UIStyle.Label(size, new Color(1f, 1f, 1f, 0.9f), TextAnchor.UpperLeft, font));
+            GUI.EndGroup();
+            return sz.x;
+        }
+
+        static bool MenuItem(Rect r, int index, string label, string subtitle, bool primary = false)
+        {
+            var e = Event.current;
+            bool over = r.Contains(e.mousePosition);
+            if (e.type == EventType.Repaint)
+                hover[index] = Mathf.MoveTowards(hover[index], over ? 1f : 0f, Time.unscaledDeltaTime * 6f);
+            float h = Mathf.Max(hover[index], primary ? 0.55f : 0f);
+
+            UIStyle.Icon(r, UIStyle.FadeRight, new Color(UIStyle.Accent.r, UIStyle.Accent.g, UIStyle.Accent.b, 0.75f * h));
+            UIStyle.Rect(new Rect(r.x, r.y, 4, r.height), new Color(0.55f, 0.75f, 1f, 0.25f + 0.75f * h));
+            float slide = 8f * hover[index];
+
+            var idx = UIStyle.Label(16, new Color(1f, 1f, 1f, 0.45f + 0.4f * h), TextAnchor.MiddleLeft, UIStyle.FontLight);
+            GUI.Label(new Rect(r.x + 22 + slide, r.y, 40, r.height), (index + 1).ToString("00"), idx);
+            var main = UIStyle.Label(30, Color.Lerp(new Color(0.85f, 0.86f, 0.87f), Color.white, h), TextAnchor.MiddleLeft, UIStyle.FontSemiBold);
+            float textY = subtitle != null ? r.y - 9 : r.y;
+            GUI.Label(new Rect(r.x + 70 + slide, textY, r.width - 80, r.height), UIStyle.Spaced(label), main);
+            if (subtitle != null)
+            {
+                var subSt = UIStyle.Label(14, new Color(0.75f, 0.8f, 0.85f, 0.55f + 0.35f * h), TextAnchor.MiddleLeft, UIStyle.FontRegular);
+                GUI.Label(new Rect(r.x + 72 + slide, r.y + 19, r.width - 80, r.height), subtitle.ToUpperInvariant(), subSt);
+            }
+
+            if (e.type == EventType.MouseDown && e.button == 0 && over)
+            {
+                e.Use();
+                Sfx.Play2D("click");
+                return true;
+            }
+            return false;
         }
 
         public static void DrawSettings(System.Action back)
@@ -88,6 +180,9 @@ namespace Neanderthal
                 if (UIStyle.Button(new Rect(panel.x + 40, y, 140, 44), "ТАК, СКИНУТИ", false, true, 16)) { Profile.Reset(); confirmReset = false; }
                 if (UIStyle.Button(new Rect(panel.x + 200, y, 140, 44), "СКАСУВАТИ", false, true, 16)) confirmReset = false;
             }
+            GUI.Label(new Rect(panel.x + 40, panel.yMax - 130, panel.width - 80, 50),
+                "WASD рух · Shift біг · Ctrl присід · Пробіл стрибок · ЛКМ атака · ПКМ приціл / кидок списа · R перезарядка · E дія · Tab крафт · H лікування · 1–5 зброя",
+                UIStyle.Wrap(14, UIStyle.TextDim));
             if (UIStyle.Button(new Rect(panel.xMax - 200, panel.yMax - 70, 160, 44), "НАЗАД", true, true, 18))
             {
                 p.Save();

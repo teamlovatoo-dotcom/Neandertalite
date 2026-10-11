@@ -25,6 +25,12 @@ namespace Neanderthal
         public static float Width => Screen.width / Scale;
         public static float Height => VirtualHeight;
 
+        static Font fontRegular, fontBold, fontSemiBold, fontLight;
+        public static Font FontRegular => fontRegular != null ? fontRegular : (fontRegular = Resources.Load<Font>("Fonts/Oswald-Regular"));
+        public static Font FontBold => fontBold != null ? fontBold : (fontBold = Resources.Load<Font>("Fonts/Oswald-Bold"));
+        public static Font FontSemiBold => fontSemiBold != null ? fontSemiBold : (fontSemiBold = Resources.Load<Font>("Fonts/Oswald-SemiBold"));
+        public static Font FontLight => fontLight != null ? fontLight : (fontLight = Resources.Load<Font>("Fonts/Oswald-Light"));
+
         static Texture2D white;
         static Texture2D ring;
         static Texture2D vignette;
@@ -63,6 +69,36 @@ namespace Neanderthal
                 }
                 return fadeRight;
             }
+        }
+
+        static Texture2D fadeUp;
+
+        /// <summary>Vertical gradient, opaque at the bottom fading to transparent at the top.</summary>
+        public static Texture2D FadeUp
+        {
+            get
+            {
+                if (fadeUp == null)
+                {
+                    fadeUp = new Texture2D(1, 256, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
+                    for (int y = 0; y < 256; y++)
+                    {
+                        float k = y / 255f;
+                        fadeUp.SetPixel(0, y, new Color(1, 1, 1, 1f - k * k * (3f - 2f * k)));
+                    }
+                    fadeUp.Apply();
+                }
+                return fadeUp;
+            }
+        }
+
+        /// <summary>Draw a texture upside down (e.g. FadeUp as a top band).</summary>
+        public static void IconFlipped(Rect r, Texture2D tex, Color c)
+        {
+            var old = GUI.color;
+            GUI.color = c;
+            GUI.DrawTextureWithTexCoords(r, tex, new Rect(0, 1, 1, -1));
+            GUI.color = old;
         }
 
         public static Texture2D Ring
@@ -111,21 +147,99 @@ namespace Neanderthal
             return tex;
         }
 
+        static Texture2D coin, triangle, bolt, claw;
+
+        /// <summary>Procedural icon from a signed shape function (inside > 0), anti-aliased.</summary>
+        static Texture2D Shape(int w, int h, System.Func<float, float, float> inside)
+        {
+            var tex = new Texture2D(w, h, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };
+            for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
+            {
+                float a = 0f;
+                for (int s = 0; s < 4; s++)
+                {
+                    float u = (x + 0.25f + (s % 2) * 0.5f) / w, v = (y + 0.25f + (s / 2) * 0.5f) / h;
+                    a += inside(u, v) > 0f ? 0.25f : 0f;
+                }
+                tex.SetPixel(x, y, new Color(1, 1, 1, a));
+            }
+            tex.Apply();
+            return tex;
+        }
+
+        static bool InPoly(float x, float y, Vector2[] p)
+        {
+            bool c = false;
+            for (int i = 0, j = p.Length - 1; i < p.Length; j = i++)
+                if (((p[i].y > y) != (p[j].y > y)) && (x < (p[j].x - p[i].x) * (y - p[i].y) / (p[j].y - p[i].y) + p[i].x)) c = !c;
+            return c;
+        }
+
+        public static Texture2D Coin => coin != null ? coin : (coin = Shape(32, 32, (u, v) =>
+        {
+            float d = Vector2.Distance(new Vector2(u, v), new Vector2(0.5f, 0.5f));
+            return d < 0.46f && !(d > 0.3f && d < 0.36f) ? 1f : -1f;
+        }));
+
+        public static Texture2D Triangle => triangle != null ? triangle : (triangle = Shape(32, 32, (u, v) =>
+            InPoly(u, v, new[] { new Vector2(0.5f, 0.95f), new Vector2(0.9f, 0.08f), new Vector2(0.5f, 0.28f), new Vector2(0.1f, 0.08f) }) ? 1f : -1f));
+
+        public static Texture2D Bolt => bolt != null ? bolt : (bolt = Shape(32, 32, (u, v) =>
+            InPoly(u, v, new[] { new Vector2(0.62f, 0.98f), new Vector2(0.18f, 0.44f), new Vector2(0.46f, 0.44f), new Vector2(0.34f, 0.02f), new Vector2(0.84f, 0.6f), new Vector2(0.55f, 0.6f) }) ? 1f : -1f));
+
+        /// <summary>A single tapered, slightly ragged claw scratch (vertical; rotate when drawing).</summary>
+        public static Texture2D Claw => claw != null ? claw : (claw = Shape(48, 320, (u, v) =>
+        {
+            float taper = Mathf.Sin(Mathf.Clamp01(v) * Mathf.PI);
+            float half = 0.42f * Mathf.Pow(taper, 0.8f);
+            float rag = (Mathf.PerlinNoise(v * 18f, 3.3f) - 0.5f) * 0.18f;
+            float center = 0.5f + (v - 0.5f) * 0.12f;
+            return half - Mathf.Abs(u - center - rag) ;
+        }));
+
+        public static void Icon(Rect r, Texture2D tex, Color c)
+        {
+            var old = GUI.color;
+            GUI.color = c;
+            GUI.DrawTexture(r, tex);
+            GUI.color = old;
+        }
+
+        /// <summary>Gold coin icon followed by an amount. Anchor Left or Right.</summary>
+        public static void Coins(Rect r, string amount, int size, Color textColor, bool alignRight = false, bool shadow = false)
+        {
+            var st = Label(size, textColor, TextAnchor.MiddleLeft, FontSemiBold);
+            float tw = st.CalcSize(new GUIContent(amount)).x;
+            float icon = size * 0.8f;
+            float total = icon + 6f + tw;
+            float x = alignRight ? r.xMax - total : r.x;
+            Icon(new Rect(x, r.center.y - icon * 0.5f, icon, icon), Coin, Gold);
+            var tr = new Rect(x + icon + 6f, r.y, tw + 4f, r.height);
+            if (shadow) GUI.Label(new Rect(tr.x + 2, tr.y + 2, tr.width, tr.height), amount, Label(size, new Color(0, 0, 0, 0.7f), TextAnchor.MiddleLeft, FontSemiBold));
+            GUI.Label(tr, amount, st);
+        }
+
         public static void BeginCanvas()
         {
             GUI.matrix = Matrix4x4.TRS(Vector3.zero, Quaternion.identity, new Vector3(Scale, Scale, 1f));
         }
 
         public static GUIStyle Label(int size, Color color, TextAnchor anchor = TextAnchor.UpperLeft, bool bold = false)
+            => Label(size, color, anchor, bold ? FontSemiBold : FontRegular, bold);
+
+        public static GUIStyle Label(int size, Color color, TextAnchor anchor, Font font, bool fallbackBold = false)
         {
-            string key = $"{size}_{ColorUtility.ToHtmlStringRGBA(color)}_{anchor}_{bold}";
+            string key = $"{size}_{ColorUtility.ToHtmlStringRGBA(color)}_{anchor}_{(font != null ? font.name : "default")}_{fallbackBold}";
             if (!styles.TryGetValue(key, out var st))
             {
                 st = new GUIStyle(GUI.skin.label)
                 {
+                    font = font,
                     fontSize = size,
                     alignment = anchor,
-                    fontStyle = bold ? FontStyle.Bold : FontStyle.Normal,
+                    // Oswald carries its own weight; only fake bold when the font file is missing.
+                    fontStyle = font == null && fallbackBold ? FontStyle.Bold : FontStyle.Normal,
                     wordWrap = false,
                     richText = true,
                     clipping = TextClipping.Overflow
@@ -197,7 +311,7 @@ namespace Neanderthal
             Color bg = selected ? Accent : (hover ? new Color(1f, 1f, 1f, 0.09f) : new Color(1f, 1f, 1f, 0.03f));
             Rect(r, bg);
             Outline(r, selected ? new Color(0.5f, 0.7f, 1f, 0.8f) : Line);
-            Text(r, label, size, enabled ? (selected ? Color.white : TextColor) : TextDim, TextAnchor.MiddleCenter);
+            GUI.Label(r, label, Label(size, enabled ? (selected ? Color.white : TextColor) : TextDim, TextAnchor.MiddleCenter, FontSemiBold));
             if (enabled && Event.current.type == EventType.MouseDown && Event.current.button == 0 && r.Contains(Event.current.mousePosition))
             {
                 Event.current.Use();

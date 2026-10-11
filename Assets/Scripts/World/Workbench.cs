@@ -14,7 +14,7 @@ namespace Neanderthal
         {
             if (!Profile.Current.HasBlueprint("bp_workbench"))
             {
-                Inventory.Notify("Потрібне креслення верстака (Торговець → КРЕСЛЕННЯ)", new Color(1f, 0.55f, 0.4f));
+                Inventory.Notify("Потрібне креслення верстака (Торговець » КРЕСЛЕННЯ)", new Color(1f, 0.55f, 0.4f));
                 Sfx.Play2D("deny", 0.6f);
                 return;
             }

@@ -132,7 +132,7 @@ namespace Neanderthal
 
             // Stamina with a lightning glyph
             float y2 = y + 36;
-            UIStyle.Shadowed(new Rect(x - 2, y2 - 8, 24, 30), "ϟ", 24, Color.white, TextAnchor.MiddleCenter, true);
+            UIStyle.Icon(new Rect(x - 1, y2 - 1, 18, 22), UIStyle.Bolt, Color.white);
             UIStyle.Shadowed(new Rect(x + 26, y2 - 6, 80, 30), Mathf.FloorToInt(p.Stamina).ToString(), 26, Color.white, TextAnchor.MiddleLeft, true);
             UIStyle.Bar(new Rect(x + 90, y2 + 8, 180, 5), p.Stamina / p.MaxStamina, new Color(0.85f, 0.85f, 0.75f));
 
@@ -195,7 +195,7 @@ namespace Neanderthal
                 UIStyle.Text(new Rect(pos.x - 10, pos.y - 10, 20, 20), dirs[i], i == 0 ? 15 : 12, i == 0 ? Color.white : UIStyle.TextDim, TextAnchor.MiddleCenter, i == 0);
             }
             // Player arrow
-            UIStyle.Text(new Rect(c.x - 10, c.y - 12, 20, 20), "▲", 16, Color.white, TextAnchor.MiddleCenter);
+            UIStyle.Icon(new Rect(c.x - 8, c.y - 9, 16, 16), UIStyle.Triangle, Color.white);
 
             // Objective / opponent blips
             var gm = GameManager.Instance;
@@ -216,7 +216,7 @@ namespace Neanderthal
         {
             float y = 200;
             float x = W - 210;
-            UIStyle.Shadowed(new Rect(x, y, 180, 24), $"<color=#ffd15a>◆</color> {Profile.Current.Coins}", 20, Color.white, TextAnchor.MiddleRight, true);
+            UIStyle.Coins(new Rect(x, y, 180, 24), Profile.Current.Coins.ToString(), 20, Color.white, true, true);
             y += 28;
             var inv = p.Inventory;
             foreach (Resource res in System.Enum.GetValues(typeof(Resource)))
