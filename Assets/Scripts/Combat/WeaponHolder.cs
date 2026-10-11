@@ -19,6 +19,9 @@ namespace Neanderthal
 
         Vector3 swayPos;
         float bobPhase;
+        float sprintBlend, landKick, airTime;
+        bool wasGrounded = true;
+        Vector3 tiltRot;
         float switchAnim;               // 1 = fully lowered
         string pendingSwitch;
         float baseFov = 80f;
@@ -176,13 +179,35 @@ namespace Neanderthal
             Quaternion baseRot = Current != null ? Quaternion.Euler(Current.HipEuler) : Quaternion.identity;
             if (Current != null && Current.Aiming) bob *= 0.2f;
 
-            Vector3 sprintTilt = Player.IsSprinting && Current != null && !Current.Busy ? new Vector3(-0.05f, -0.06f, 0f) : Vector3.zero;
+            // Sprint pose: weapon swung down and across, like modern shooters.
+            bool sprintPose = Player.IsSprinting && Current != null && !Current.Busy && !Current.Aiming && speed > 3f;
+            sprintBlend = Mathf.MoveTowards(sprintBlend, sprintPose ? 1f : 0f, dt * 5f);
+            float sb = Mathf.SmoothStep(0f, 1f, sprintBlend);
+            Vector3 sprintPos = new Vector3(-0.04f, -0.07f, -0.04f) * sb;
+            Vector3 sprintRot = new Vector3(14f, -26f, 10f) * sb;
+
+            // Landing dip and a little lift while in the air.
+            if (!Player.Grounded) airTime += dt;
+            if (Player.Grounded && !wasGrounded && airTime > 0.15f) landKick = Mathf.Clamp01(airTime * 1.4f);
+            if (Player.Grounded) airTime = 0f;
+            wasGrounded = Player.Grounded;
+            landKick = Mathf.MoveTowards(landKick, 0f, dt * 3.5f);
+            float land = Mathf.Sin(landKick * Mathf.PI) * 0.06f;
+            Vector3 airPos = new Vector3(0f, Player.Grounded ? 0f : 0.015f, 0f) - new Vector3(0f, land, 0f);
+
+            // Breathing idle and strafe roll.
+            float t = Time.time;
+            Vector3 breathe = new Vector3(Mathf.Sin(t * 0.9f) * 0.002f, Mathf.Sin(t * 1.7f) * 0.004f, 0f) * (Current != null && Current.Aiming ? 0.3f : 1f);
+            Vector3 local = Player.transform.InverseTransformDirection(hv);
+            tiltRot = Vector3.Lerp(tiltRot, new Vector3(local.z * 0.25f, 0f, -local.x * 0.9f), dt * 6f);
+
             Vector3 lowered = new Vector3(0f, -0.45f * switchAnim, 0f);
             Vector3 animPos = Current != null ? Current.AnimPos : Vector3.zero;
             Vector3 animRot = Current != null ? Current.AnimEuler : Vector3.zero;
+            Vector3 crouch = Player.Crouching ? new Vector3(0.01f, -0.015f, 0f) : Vector3.zero;
 
-            ViewRoot.localPosition = basePos + bob + swayPos + sprintTilt + lowered + animPos;
-            ViewRoot.localRotation = baseRot * Quaternion.Euler(animRot + new Vector3(switchAnim * 40f, 0f, 0f));
+            ViewRoot.localPosition = basePos + bob + swayPos + sprintPos + airPos + breathe + crouch + lowered + animPos;
+            ViewRoot.localRotation = baseRot * Quaternion.Euler(animRot + sprintRot + tiltRot + new Vector3(switchAnim * 40f + land * 60f, 0f, 0f));
         }
 
         void UpdateFov(float dt)

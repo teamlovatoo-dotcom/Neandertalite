@@ -88,3 +88,14 @@ rgb = rgb * (1 - cort[..., None]) + pale * cort[..., None]
 Image.fromarray(np.clip(rgb, 0, 255).astype(np.uint8)).save(os.path.join(out, "flint_diff.jpg"), quality=90)
 Image.open(os.path.join(src, "dark_rock/nor_gl.jpg")).resize((N, N)).save(os.path.join(out, "flint_nor_gl.jpg"), quality=92)
 print("flint")
+
+# ---------- fur: long matted strands ----------
+strands = tile_noise(N, 3, 6, 31, (60, 2))
+clumps = tile_noise(N, 4, 5, 32, (6, 2))
+tone = tile_noise(N, 2, 4, 33)
+dark = np.array([42, 30, 20], float); light = np.array([118, 88, 58], float)
+t = np.clip(strands * 0.65 + clumps * 0.35 + (tone - 0.5) * 0.4, 0, 1)[..., None]
+rgb = dark * (1 - t) + light * t
+h = strands * 0.7 + clumps * 0.3
+save("fur", rgb, normal_from_height(h, 6.0))
+print("fur")

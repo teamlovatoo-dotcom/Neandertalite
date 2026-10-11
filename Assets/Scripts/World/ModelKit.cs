@@ -93,7 +93,9 @@ namespace Neanderthal
                 case "leather": m = Mat.Pbr("leather", Mat.Leather, 0.32f, null, new Color(1.1f, 1f, 0.95f)); break;
                 case "sinew": m = Mat.Pbr("hide", Mat.Sinew, 0.35f, null, new Color(0.85f, 0.72f, 0.52f)); break;
                 case "hide": m = Mat.Pbr("hide", Mat.Leather, 0.18f); break;
-                case "fur": m = Mat.Pbr("hide", Mat.Fur, 0.1f, null, new Color(0.55f, 0.42f, 0.3f)); break;
+                case "fur": m = TextureLibrary.Has("fur") ? Mat.Pbr("fur", Mat.Fur, 0.08f) : Mat.Pbr("hide", Mat.Fur, 0.1f, null, new Color(0.55f, 0.42f, 0.3f)); break;
+                case "skin": m = Mat.Pbr("hide", Mat.Skin, 0.32f, null, new Color(0.95f, 0.68f, 0.52f)); break;
+                case "nail": m = Mat.Pbr("bone", Mat.Bone, 0.5f, null, new Color(0.9f, 0.75f, 0.65f)); break;
                 case "stone": m = Mat.Pbr("flint", Mat.Flint, 0.55f); break;
                 case "obsidian": m = Mat.Pbr("stone_dark", Mat.Flint, 0.93f, null, new Color(0.16f, 0.16f, 0.19f)); break;
                 case "bone": m = Mat.Pbr("bone", Mat.Bone, 0.25f); break;

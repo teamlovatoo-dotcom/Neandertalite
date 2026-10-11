@@ -36,6 +36,8 @@ namespace Neanderthal
             settings.agentHeight = 1.8f;
             settings.agentClimb = 0.75f;
             settings.agentSlope = 46f;
+            settings.overrideVoxelSize = true;      // coarser voxels: big maps bake in seconds
+            settings.voxelSize = 0.2f;
             data = new NavMeshData(settings.agentTypeID);
             instance = NavMesh.AddNavMeshData(data);
             op = NavMeshBuilder.UpdateNavMeshDataAsync(data, settings, sources, bounds);

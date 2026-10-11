@@ -12,6 +12,8 @@ namespace Neanderthal
         public float Draw;           // 0..1
         public bool ShowArrow = true;
         public bool IsBolt;
+        /// <summary>First-person drawing hand that follows the nock point.</summary>
+        public Transform DrawHand;
         bool pouch;
         Transform pouchPad;
 
@@ -47,6 +49,7 @@ namespace Neanderthal
             Vector3 nock = new Vector3(mid.x, mid.y, mid.z - rest - Draw * maxPull);
             Place(segA, tipA, nock, pouch ? 0.009f : 0.006f);
             Place(segB, tipB, nock, pouch ? 0.009f : 0.006f);
+            if (DrawHand != null) DrawHand.localPosition = nock + new Vector3(pouch ? 0f : 0.004f, pouch ? -0.012f : -0.004f, -0.035f);
             if (pouch)
             {
                 nockedArrow.gameObject.SetActive(ShowArrow);

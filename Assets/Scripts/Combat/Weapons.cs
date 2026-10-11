@@ -66,9 +66,12 @@ namespace Neanderthal
         {
             Model = WeaponModels.Build(Data.Id, Holder.ViewRoot, out var bs).transform;
             OnModelBuilt(bs);
+            bool hands = ViewHands.Attach(Data.Id, Model, bs);
+            if (hands && Data.Id == "fists")
+                foreach (Transform c in Model) if (c.name != "HandL" && c.name != "HandR") c.gameObject.SetActive(false);
             Shapes.SetShadows(Model.gameObject, false);
-            // A rough hand on the grip so it reads as "held" (detailed models are shown on their own).
-            if (Data.Id != "fists" && WeaponModels.ModelName(Data.Id) == null)
+            // A rough hand on the grip so it reads as "held" when there is no hand model.
+            if (!hands && Data.Id != "fists")
                 Shapes.Box(Model, new Vector3(0f, -0.01f, 0f), new Vector3(0.085f, 0.09f, 0.1f), Mat.Get(Mat.Skin), null, false);
             if (Data.LightRange > 0f)
                 Shapes.PointLight(Model, new Vector3(0f, 0.1f, 0.55f), Mat.Fire, Data.LightRange, 2.2f, true);
@@ -531,7 +534,10 @@ namespace Neanderthal
         {
             Cooldown -= dt;
             int have = Player.Inventory.GetAmmo(Data.Ammo);
-            if (Model != null) Model.gameObject.SetActive(have > 0 && Cooldown <= Data.Cooldown * 0.4f);
+            // The stone disappears from the hand when thrown (the hand stays).
+            bool show = have > 0 && Cooldown <= Data.Cooldown * 0.4f;
+            if (Model != null)
+                foreach (Transform c in Model) if (c.name != "HandR") c.gameObject.SetActive(show);
 
             if (!winding && inputOk && Cooldown <= 0f && GameInput.FireHeld && have > 0)
             {
