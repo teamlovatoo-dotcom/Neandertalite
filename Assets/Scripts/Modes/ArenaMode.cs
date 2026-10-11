@@ -127,7 +127,9 @@ namespace Neanderthal
             {
                 killer.Kills++;
                 if (killer == me) Profile.Current.Earn(10);
-                Inventory.Notify($"{killer.Name}  »  {victim.Name}", killer == me ? UIStyle.Gold : UIStyle.TextColor);
+                string how = info.WeaponId != null && ItemDatabase.Weapon(info.WeaponId) != null ? ItemDatabase.Weapon(info.WeaponId).Name.ToLowerInvariant() : "";
+                string head = info.Headshot ? "  ·  в голову" : "";
+                Inventory.Notify($"{killer.Name}  »  {victim.Name}{(how.Length > 0 ? "  (" + how + ")" : "")}{head}", killer == me ? UIStyle.Gold : UIStyle.TextColor);
             }
             else
             {

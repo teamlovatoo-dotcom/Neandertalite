@@ -96,7 +96,7 @@ namespace Neanderthal
             for (int side = -1; side <= 1; side += 2)
             {
                 var hip = Shapes.Pivot(root, new Vector3(0.14f * side, 0.92f, 0f), side < 0 ? "LegL" : "LegR");
-                Hitboxed(Shapes.Caps(hip, new Vector3(0, -0.44f, 0), new Vector3(0.2f, 0.46f, 0.2f), skin), 0.8f);
+                Hitboxed(Shapes.Caps(hip, new Vector3(0, -0.44f, 0), new Vector3(0.2f, 0.46f, 0.2f), skin), 0.75f, false, HitZone.Leg);
                 Shapes.Box(hip, new Vector3(0, -0.88f, 0.06f), new Vector3(0.16f, 0.08f, 0.26f), Mat.Get(Mat.Leather), null, false);
                 Shapes.Box(hip, new Vector3(0, -0.12f, 0), new Vector3(0.24f, 0.28f, 0.26f), fur, null, false);
                 b.Legs.Add(hip);
@@ -104,7 +104,7 @@ namespace Neanderthal
             }
 
             // Torso: barrel chest, fur wrap and cloak
-            Hitboxed(Shapes.Caps(root, new Vector3(0, 1.28f, 0), new Vector3(0.58f, 0.36f, 0.4f), skin), 1f);
+            Hitboxed(Shapes.Caps(root, new Vector3(0, 1.28f, 0), new Vector3(0.58f, 0.36f, 0.4f), skin), 1.15f, false, HitZone.Chest);
             Shapes.Box(root, new Vector3(0, 1.0f, 0), new Vector3(0.52f, 0.3f, 0.38f), fur, null, false);
             Shapes.Box(root, new Vector3(0, 1.38f, -0.12f), new Vector3(0.62f, 0.5f, 0.2f), fur, Quaternion.Euler(-6, 0, 0), false);
             Shapes.Stick(root, new Vector3(-0.3f, 1.55f, 0.05f), new Vector3(0.25f, 1.0f, 0.2f), 0.06f, Mat.Get(Mat.Leather));
@@ -113,7 +113,7 @@ namespace Neanderthal
             b.Neck = Shapes.Pivot(root, new Vector3(0, 1.55f, 0.02f), "Neck");
             b.Head = b.Neck;
             var head = Shapes.Ball(b.Neck, new Vector3(0, 0.13f, 0.02f), new Vector3(0.26f, 0.29f, 0.28f), skin);
-            Hitboxed(head, 2f, true);
+            Hitboxed(head, 2.5f, true, HitZone.Head);
             Shapes.Box(b.Neck, new Vector3(0, 0.19f, 0.13f), new Vector3(0.24f, 0.05f, 0.07f), skin, null, false);         // brow ridge
             Shapes.Ball(b.Neck, new Vector3(0, 0.2f, -0.03f), new Vector3(0.31f, 0.27f, 0.32f), hair, false);               // hair
             Shapes.Ball(b.Neck, new Vector3(0, 0.02f, 0.1f), new Vector3(0.24f, 0.22f, 0.16f), hair, false);                // beard
@@ -154,6 +154,25 @@ namespace Neanderthal
                 b.HeldWeapon = model;
             }
             return b;
+        }
+
+        /// <summary>A capsule hitbox from a to b (world points), parented to a bone so it follows the animation.</summary>
+        static void BoneHitbox(Transform bone, Vector3 a, Vector3 b, float radius, float mult, HitZone zone)
+        {
+            var go = new GameObject("Hit_" + zone);
+            go.transform.SetParent(bone, false);
+            go.transform.position = (a + b) * 0.5f;
+            Vector3 d = b - a;
+            go.transform.rotation = d.sqrMagnitude > 1e-6f ? Quaternion.FromToRotation(Vector3.up, d.normalized) : bone.rotation;
+            float s = Mathf.Max(0.0001f, bone.lossyScale.x);
+            go.transform.localScale = Vector3.one / s;
+            var cap = go.AddComponent<CapsuleCollider>();
+            cap.direction = 1;
+            cap.radius = radius;
+            cap.height = d.magnitude + radius * 2f;
+            var hb = go.AddComponent<Hitbox>();
+            hb.Multiplier = mult;
+            hb.Zone = zone;
         }
 
         static Transform FindDeep(Transform t, string name)
@@ -239,20 +258,41 @@ namespace Neanderthal
                 smr.sharedMaterials = mats;
             }
 
-            // Hit volumes: body capsule up to the shoulders, separate head sphere for headshots.
-            var bodyCol = root.gameObject.AddComponent<CapsuleCollider>();
-            bodyCol.center = new Vector3(0f, 0.76f * build, 0f);
-            bodyCol.height = 1.52f * build;
-            bodyCol.radius = 0.27f;
-            root.gameObject.AddComponent<Hitbox>().Multiplier = 1f;
+            // Hit volumes follow the animated bones: head x2.5, chest x1.15, stomach x1, arms and legs less.
+            Transform spine = FindDeep(t, "Spine"), chest = FindDeep(t, "Chest");
+            Transform shinL = FindDeep(t, "LowerLeg.L"), shinR = FindDeep(t, "LowerLeg.R");
+            Transform footL = FindDeep(t, "Foot.L"), footR = FindDeep(t, "Foot.R");
+            bool boneHits = spine != null && chest != null && shinL != null && shinR != null;
+            if (boneHits)
+            {
+                BoneHitbox(hips, hips.position + root.up * 0.05f, chest.position, 0.21f, 1f, HitZone.Stomach);
+                BoneHitbox(chest, chest.position - root.up * 0.02f, neck.position, 0.25f, 1.15f, HitZone.Chest);
+                BoneHitbox(armL, armL.position, foreL != null ? foreL.position : armL.position - root.up * 0.3f, 0.075f, 0.75f, HitZone.Arm);
+                BoneHitbox(armR, armR.position, foreR != null ? foreR.position : armR.position - root.up * 0.3f, 0.075f, 0.75f, HitZone.Arm);
+                if (foreL != null) BoneHitbox(foreL, foreL.position, handL != null ? handL.position : foreL.position - root.up * 0.28f, 0.065f, 0.6f, HitZone.Arm);
+                if (foreR != null) BoneHitbox(foreR, foreR.position, handR != null ? handR.position : foreR.position - root.up * 0.28f, 0.065f, 0.6f, HitZone.Arm);
+                BoneHitbox(legL, legL.position, shinL.position, 0.1f, 0.75f, HitZone.Leg);
+                BoneHitbox(legR, legR.position, shinR.position, 0.1f, 0.75f, HitZone.Leg);
+                BoneHitbox(shinL, shinL.position, footL != null ? footL.position : root.position, 0.075f, 0.6f, HitZone.Leg);
+                BoneHitbox(shinR, shinR.position, footR != null ? footR.position : root.position, 0.075f, 0.6f, HitZone.Leg);
+            }
+            else
+            {
+                var bodyCol = root.gameObject.AddComponent<CapsuleCollider>();
+                bodyCol.center = new Vector3(0f, 0.76f * build, 0f);
+                bodyCol.height = 1.52f * build;
+                bodyCol.radius = 0.27f;
+                root.gameObject.AddComponent<Hitbox>().Multiplier = 1f;
+            }
             var headCol = new GameObject("HeadHitbox");
             headCol.transform.SetParent(head, false);
             headCol.transform.position = Vector3.Lerp(head.position, facing.position, 0.5f) + root.up * 0.03f;
             var sc = headCol.AddComponent<SphereCollider>();
             sc.radius = 0.14f / Mathf.Max(0.001f, headCol.transform.lossyScale.x);
             var hb = headCol.AddComponent<Hitbox>();
-            hb.Multiplier = 2f;
+            hb.Multiplier = 2.5f;
             hb.IsHead = true;
+            hb.Zone = HitZone.Head;
 
             if (teamColor.HasValue)
             {
@@ -331,7 +371,7 @@ namespace Neanderthal
             for (int i = 0; i < 4; i++)
             {
                 var hip = Shapes.Pivot(root, hips[i], "Leg" + i);
-                Hitboxed(Shapes.Caps(hip, new Vector3(0, -legLen * 0.5f, 0), new Vector3(legThick, legLen * 0.55f, legThick), i < 2 ? fur : dark), 0.7f);
+                Hitboxed(Shapes.Caps(hip, new Vector3(0, -legLen * 0.5f, 0), new Vector3(legThick, legLen * 0.55f, legThick), i < 2 ? fur : dark), 0.7f, false, HitZone.Leg);
                 b.Legs.Add(hip);
                 b.LegPhase.Add(phase[i]);
             }
@@ -347,7 +387,7 @@ namespace Neanderthal
                 default: headPos = new Vector3(0, 0.08f, headSize * 0.6f); break;
             }
             var head = Shapes.Ball(b.Neck, headPos, new Vector3(headSize, headSize * 0.9f, headSize * 1.1f), fur);
-            Hitboxed(head, 2f, true);
+            Hitboxed(head, 2.5f, true, HitZone.Head);
             var eye = Mat.Get(new Color(0.05f, 0.04f, 0.03f), 0.8f);
             Shapes.Ball(b.Neck, headPos + new Vector3(-headSize * 0.32f, headSize * 0.15f, headSize * 0.38f), Vector3.one * headSize * 0.12f, eye, false);
             Shapes.Ball(b.Neck, headPos + new Vector3(headSize * 0.32f, headSize * 0.15f, headSize * 0.38f), Vector3.one * headSize * 0.12f, eye, false);
@@ -411,11 +451,12 @@ namespace Neanderthal
             return b;
         }
 
-        static GameObject Hitboxed(GameObject go, float mult, bool head = false)
+        static GameObject Hitboxed(GameObject go, float mult, bool head = false, HitZone zone = HitZone.Body)
         {
             var hb = go.AddComponent<Hitbox>();
             hb.Multiplier = mult;
             hb.IsHead = head;
+            hb.Zone = head ? HitZone.Head : zone;
             return go;
         }
     }

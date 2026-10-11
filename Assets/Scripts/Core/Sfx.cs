@@ -31,6 +31,9 @@ namespace Neanderthal
             clips["coin"] = Make("coin", 0.3f, (t, d) => (Mathf.Sin(t * 2 * Mathf.PI * (t < 0.08f ? 1300f : 1750f))) * Mathf.Exp(-t * 10f) * 0.3f);
             clips["buy"] = Make("buy", 0.4f, (t, d) => (Mathf.Sin(t * 2 * Mathf.PI * 880f) + Mathf.Sin(t * 2 * Mathf.PI * 1320f)) * Mathf.Exp(-t * 6f) * 0.2f);
             clips["deny"] = Make("deny", 0.25f, (t, d) => Mathf.Sign(Mathf.Sin(t * 2 * Mathf.PI * 140f)) * Env(t, 0.005f, d) * 0.15f);
+            clips["hitmark"] = Make("hitmark", 0.07f, (t, d) => (Mathf.Sin(t * 2 * Mathf.PI * 2400f) * 0.6f + Noise() * 0.4f) * Env(t, 0.001f, d) * 0.22f);
+            clips["headshot"] = Make("headshot", 0.35f, (t, d) => (Mathf.Sin(t * 2 * Mathf.PI * 1850f) + 0.5f * Mathf.Sin(t * 2 * Mathf.PI * 2780f)) * Mathf.Exp(-t * 14f) * 0.22f + Noise() * Mathf.Exp(-t * 60f) * 0.25f);
+            clips["killmark"] = Make("killmark", 0.45f, (t, d) => (Mathf.Sin(t * 2 * Mathf.PI * (t < 0.1f ? 900f : 1350f))) * Mathf.Exp(-t * 7f) * 0.2f);
             clips["click"] = Make("click", 0.04f, (t, d) => Noise() * Env(t, 0.001f, d) * 0.3f);
             clips["hurt"] = Make("hurt", 0.35f, (t, d) => Saw(t * (140f - t * 80f)) * Env(t, 0.02f, d) * 0.35f);
             clips["growl"] = Make("growl", 0.7f, (t, d) => Saw(t * (70f + Mathf.Sin(t * 30f) * 8f)) * (0.5f + Noise() * 0.5f) * Env(t, 0.05f, d) * 0.35f);

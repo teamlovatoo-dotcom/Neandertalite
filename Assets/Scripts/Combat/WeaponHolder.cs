@@ -189,9 +189,14 @@ namespace Neanderthal
         {
             baseFov = Profile.Current.Fov;
             float target = baseFov;
-            if (Current != null && Current.Aiming) target = Current.Data.ZoomFov > 0 ? Current.Data.ZoomFov : baseFov - 10f;
+            if (Current != null)
+            {
+                if (Current.Aiming && Current.Data.ZoomFov > 0) target = Current.Data.ZoomFov;
+                else target = baseFov - Current.ZoomDegrees;
+            }
             if (Player.IsSprinting) target += 5f;
-            Player.Cam.fieldOfView = Mathf.Lerp(Player.Cam.fieldOfView, target, dt * 12f);
+            Player.Cam.fieldOfView = Mathf.Lerp(Player.Cam.fieldOfView, target, dt * 10f);
+            Player.LookScale = Mathf.Clamp(Player.Cam.fieldOfView / Mathf.Max(1f, baseFov), 0.2f, 1f);
             // Hide the viewmodel through a scope.
             bool scoped = Current != null && Current.Aiming && Current.Data.ZoomFov > 0 && Current.Data.ZoomFov < 30f;
             foreach (Transform c in ViewRoot) c.gameObject.SetActive(!scoped);

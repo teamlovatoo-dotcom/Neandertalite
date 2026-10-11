@@ -10,6 +10,7 @@ from mathutils import Vector, noise
 argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 ROOT = argv[0] if argv else os.getcwd()
 PREVIEW = argv[1] if len(argv) > 1 else None
+PORTRAIT = argv[2] if len(argv) > 2 else None   # optional: square head shot for the HUD
 random.seed(7)
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -346,3 +347,30 @@ if PREVIEW:
     scene.render.filepath = PREVIEW
     bpy.ops.render.render(write_still=True)
     print("PREVIEW", PREVIEW)
+
+# ------------------------------------------------------------------ HUD portrait (head close-up, transparent background)
+if PORTRAIT:
+    for o in [o for o in bpy.data.objects if o.type in ('CAMERA', 'LIGHT')]:
+        bpy.data.objects.remove(o)
+    cam_data = bpy.data.cameras.new("PCam"); cam = link(bpy.data.objects.new("PCam", cam_data))
+    target = Vector((0, 0, 1.62))
+    cam.location = (0.38, -1.15, 1.66)
+    cam.rotation_euler = (target - cam.location).to_track_quat('-Z', 'Y').to_euler()
+    cam_data.lens = 85
+    scene.camera = cam
+    for loc, energy, col, size in (((1.3, -0.9, 2.0), 55, (1, 0.72, 0.45), 0.6), ((-1.3, -0.8, 1.7), 8, (0.5, 0.62, 1), 1.5),
+                                   ((-0.6, 1.2, 2.1), 110, (0.75, 0.85, 1), 0.5), ((0.9, 1.0, 1.9), 60, (1, 0.6, 0.3), 0.4)):
+        ld = bpy.data.lights.new("PL", 'AREA'); ld.energy = energy; ld.color = col; ld.size = size
+        lo = link(bpy.data.objects.new("PL", ld)); lo.location = loc
+        lo.rotation_euler = (target - Vector(loc)).to_track_quat('-Z', 'Y').to_euler()
+    if scene.world is None:
+        world = bpy.data.worlds.new("W"); scene.world = world; world.use_nodes = True
+    scene.world.node_tree.nodes["Background"].inputs[0].default_value = (0.02, 0.022, 0.025, 1)
+    scene.view_settings.look = 'AgX - Punchy' if 'AgX - Punchy' in [i.identifier for i in scene.view_settings.bl_rna.properties['look'].enum_items] else 'None'
+
+    scene.render.film_transparent = True
+    scene.render.engine = 'CYCLES'; scene.cycles.samples = 48; scene.cycles.device = 'CPU'; scene.cycles.use_denoising = False
+    scene.render.resolution_x = 512; scene.render.resolution_y = 512
+    scene.render.filepath = PORTRAIT
+    bpy.ops.render.render(write_still=True)
+    print("PORTRAIT", PORTRAIT)

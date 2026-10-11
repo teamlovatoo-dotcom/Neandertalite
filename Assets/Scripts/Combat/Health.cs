@@ -12,6 +12,7 @@ namespace Neanderthal
         public Vector3 Direction;
         public GameObject Attacker;
         public bool Headshot;
+        public HitZone Zone;
         public float Knockback;
         public string WeaponId;
     }
@@ -98,16 +99,20 @@ namespace Neanderthal
         }
 
         /// <summary>Resolve a collider hit into the Health it belongs to plus body-part multiplier.</summary>
-        public static Health FromCollider(Collider c, out float multiplier, out bool head)
+        public static Health FromCollider(Collider c, out float multiplier, out bool head) => FromCollider(c, out multiplier, out head, out _);
+
+        public static Health FromCollider(Collider c, out float multiplier, out bool head, out HitZone zone)
         {
             multiplier = 1f;
             head = false;
+            zone = HitZone.Body;
             if (c == null) return null;
             var hb = c.GetComponent<Hitbox>();
             if (hb != null)
             {
                 multiplier = hb.Multiplier;
                 head = hb.IsHead;
+                zone = head ? HitZone.Head : hb.Zone;
             }
             return c.GetComponentInParent<Health>();
         }
@@ -115,7 +120,7 @@ namespace Neanderthal
         /// <summary>Convenience: apply damage to whatever a raycast hit.</summary>
         public static bool Apply(RaycastHit hit, float amount, Vector3 dir, GameObject attacker, float knockback = 0f, string weaponId = null)
         {
-            var h = FromCollider(hit.collider, out float mult, out bool head);
+            var h = FromCollider(hit.collider, out float mult, out bool head, out HitZone zone);
             if (h == null) return false;
             h.TakeDamage(new DamageInfo
             {
@@ -124,6 +129,7 @@ namespace Neanderthal
                 Direction = dir,
                 Attacker = attacker,
                 Headshot = head,
+                Zone = zone,
                 Knockback = knockback,
                 WeaponId = weaponId
             });

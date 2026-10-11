@@ -440,6 +440,7 @@ namespace Neanderthal
             bool sling = RangedWeapon == "slingshot";
             var visual = sling ? WeaponModels.Stone(null) : WeaponModels.Arrow(null, false);
             var p = Projectile.Launch(visual, from, dir * ProjectileSpeed, AttackDamage, gameObject);
+            p.WeaponId = RangedWeapon;
             p.RecoverAmmo = sling ? AmmoType.Stone : AmmoType.Arrow;
             p.Blunt = sling;
             Sfx.Play("bow", from, 0.8f, sling ? 1.6f : 1f);

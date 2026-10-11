@@ -22,6 +22,29 @@ namespace Neanderthal
         public virtual Vector3 HipEuler => new Vector3(0f, -6f, 0f);
         public virtual string AmmoText => "";
         public virtual string ReserveText => "";
+        /// <summary>Current accuracy cone in degrees (drives the dynamic crosshair).</summary>
+        public virtual float SpreadDegrees => 0f;
+        /// <summary>How many degrees the camera zooms in right now (bow draw, aiming...).</summary>
+        public virtual float ZoomDegrees => Aiming ? 10f : 0f;
+        /// <summary>Melee weapons show a small dot instead of the spread crosshair.</summary>
+        public virtual bool IsMelee => false;
+        /// <summary>Throwables: where and how fast the projectile would leave the hand right now (for the arc preview).</summary>
+        public virtual bool GetLaunch(out Vector3 pos, out Vector3 vel, out float gravity)
+        {
+            pos = vel = Vector3.zero;
+            gravity = 0f;
+            return false;
+        }
+
+        /// <summary>Extra inaccuracy from moving, jumping and crouching.</summary>
+        protected float MovementSpread(float scale)
+        {
+            Vector3 v = Player.Velocity; v.y = 0f;
+            float s = Mathf.Clamp01((v.magnitude - 0.5f) / 6f) * 1.6f * scale;
+            if (!Player.Grounded) s += 2.2f * scale;
+            if (Player.Crouching) s *= 0.6f;
+            return s;
+        }
 
         public static Weapon Create(WeaponData data, WeaponHolder holder)
         {
@@ -102,6 +125,8 @@ namespace Neanderthal
         float Duration => Mathf.Max(0.3f, Data.Cooldown);
 
         public override bool CanHolster => swingT < 0f;
+        public override bool IsMelee => true;
+        public override float ZoomDegrees => 0f;
 
         public override void Tick(float dt, bool inputOk)
         {
@@ -165,7 +190,18 @@ namespace Neanderthal
         bool raising;
 
         public override bool CanHolster => thrustT < 0f && !raising;
+        public override float ZoomDegrees => throwCharge * 6f;
+        public override float SpreadDegrees => raising ? 0.4f + MovementSpread(0.6f) : 0f;
+        public override bool IsMelee => !raising;
         public override Vector3 HipPosition => new Vector3(0.22f, -0.22f, 0.1f);
+
+        public override bool GetLaunch(out Vector3 pos, out Vector3 vel, out float gravity)
+        {
+            gravity = 7f;
+            pos = EyePos + Aim * 0.6f + Player.Cam.transform.right * 0.15f;
+            vel = Aim * Data.ProjectileSpeed * Mathf.Lerp(0.6f, 1f, throwCharge) + Player.Velocity * 0.5f;
+            return raising && throwCharge > 0.05f;
+        }
         public override Vector3 HipEuler => new Vector3(-4f, -3f, 0f);
 
         public override void Tick(float dt, bool inputOk)
@@ -229,9 +265,10 @@ namespace Neanderthal
         {
             Player.UseStamina(Data.StaminaCost * 1.5f);
             var visual = WeaponModels.Build(Data.Id, null, out _);
-            Vector3 dir = Aim;
+            Vector3 dir = Spread(Aim, 0.4f + MovementSpread(0.6f));
             Vector3 pos = EyePos + dir * 0.6f + Player.Cam.transform.right * 0.15f;
             var p = Projectile.Launch(visual, pos, dir * Data.ProjectileSpeed * Mathf.Lerp(0.6f, 1f, throwCharge) + Player.Velocity * 0.5f, Data.Damage * 2.2f * throwCharge, Player.gameObject, 7f);
+            p.WeaponId = Data.Id;
             p.RecoverWeaponId = Data.Id;
             p.Knockback = 5f;
             Sfx.Play("swing", EyePos, 0.9f, 0.7f);
@@ -259,6 +296,14 @@ namespace Neanderthal
         public override Vector3 HipEuler => Sling ? new Vector3(-4f, 0f, -8f) : new Vector3(0f, 3f, -24f);
         public override string AmmoText => Player.Inventory.GetAmmo(Data.Ammo).ToString();
         public override string ReserveText => ItemDatabase.AmmoName(Data.Ammo);
+
+        /// <summary>Tired arms after holding a full draw too long (seconds past the comfortable hold).</summary>
+        float Tremble => heldFull > 2.5f ? Mathf.Min(4f, (heldFull - 2.5f) * 2f) : 0f;
+
+        float CurrentSpread() => (Aiming ? 0.1f : 0.6f) + (1f - draw) * 1.5f + Tremble + MovementSpread(Aiming ? 0.6f : 1f);
+        public override float SpreadDegrees => CurrentSpread();
+        // Drawing the string pulls the view in; aiming (RMB) zooms further.
+        public override float ZoomDegrees => draw * (Sling ? 4f : 8f) + (Aiming ? (Sling ? 8f : 14f) : 0f);
 
         protected override void OnModelBuilt(BowString bowString) => str = bowString;
 
@@ -301,17 +346,22 @@ namespace Neanderthal
             }
             AnimPos = new Vector3(-0.02f * draw, 0.03f * draw, -0.06f * draw);
             AnimEuler = new Vector3(0f, 0f, 6f * draw);
+            if (Tremble > 0f)
+            {
+                // Arms start shaking when the full draw is held too long.
+                float k = Tremble * 0.6f, t = Time.time;
+                AnimEuler += new Vector3(Mathf.PerlinNoise(t * 7f, 0f) - 0.5f, Mathf.PerlinNoise(0f, t * 7f) - 0.5f, 0f) * k;
+            }
         }
 
         void Release()
         {
             if (Player.Inventory.TakeAmmo(Data.Ammo, 1) == 0) return;
-            float shake = heldFull > 2.5f ? Mathf.Min(4f, (heldFull - 2.5f) * 2f) : 0f;
-            float spread = (Aiming ? 0.1f : 0.6f) + (1f - draw) * 1.5f + shake;
-            Vector3 dir = Spread(Aim, spread);
+            Vector3 dir = Spread(Aim, CurrentSpread());
             var visual = Sling ? WeaponModels.Stone(null) : WeaponModels.Arrow(null, false);
             Vector3 pos = EyePos + dir * 0.4f;
             var p = Projectile.Launch(visual, pos, dir * Data.ProjectileSpeed * Mathf.Lerp(0.35f, 1f, draw), Data.Damage * Mathf.Lerp(0.25f, 1f, draw * draw), Player.gameObject);
+            p.WeaponId = Data.Id;
             p.RecoverAmmo = Data.Ammo;
             p.Blunt = Sling;
             Sfx.Play("bow", EyePos, 0.8f, Sling ? 1.6f : 1f);
@@ -333,6 +383,7 @@ namespace Neanderthal
         public override Vector3 HipEuler => Vector3.zero;
         public override string AmmoText => mag.ToString();
         public override string ReserveText => Player.Inventory.GetAmmo(Data.Ammo).ToString();
+        public override float SpreadDegrees => Data.Spread * (Aiming ? 0.35f : 1f) * (Player.Crouching ? 0.7f : 1f) * (Player.Grounded ? 1f : 2f) + (Player.Velocity.magnitude > 3f ? Data.Spread * 0.5f : 0f) + recoilAnim * Data.Spread;
 
         protected override void OnModelBuilt(BowString bowString) => str = bowString;
 
@@ -417,6 +468,7 @@ namespace Neanderthal
                 Vector3 dir = Spread(Aim, spread);
                 var visual = WeaponModels.Arrow(null, true);
                 var p = Projectile.Launch(visual, EyePos + dir * 0.4f, dir * Data.ProjectileSpeed, Data.Damage, Player.gameObject, 4f);
+                p.WeaponId = Data.Id;
                 p.RecoverAmmo = AmmoType.Bolt;
                 Player.AddRecoil(1f, 0f);
                 return;
@@ -463,6 +515,17 @@ namespace Neanderthal
         public override Vector3 HipEuler => new Vector3(10f, -10f, 0f);
         public override string AmmoText => Player.Inventory.GetAmmo(Data.Ammo).ToString();
         public override string ReserveText => ItemDatabase.AmmoName(Data.Ammo);
+        float CurrentSpread() => 0.6f + (1f - wind) * 2f + MovementSpread(1f);
+        public override float SpreadDegrees => CurrentSpread();
+        public override float ZoomDegrees => wind * 4f;
+
+        public override bool GetLaunch(out Vector3 pos, out Vector3 vel, out float gravity)
+        {
+            gravity = 9.81f;
+            pos = EyePos + Aim * 0.5f + Player.Cam.transform.right * 0.12f;
+            vel = Aim * Data.ProjectileSpeed * Mathf.Lerp(0.45f, 1f, wind) + Player.Velocity * 0.4f;
+            return winding && wind > 0.05f;
+        }
 
         public override void Tick(float dt, bool inputOk)
         {
@@ -495,11 +558,12 @@ namespace Neanderthal
         {
             if (Player.Inventory.TakeAmmo(Data.Ammo, 1) == 0) return;
             Player.UseStamina(Data.StaminaCost);
-            Vector3 dir = Spread(Aim, 0.6f + (1f - wind) * 2f);
+            Vector3 dir = Spread(Aim, CurrentSpread());
             var visual = WeaponModels.Stone(null);
             Vector3 pos = EyePos + dir * 0.5f + Player.Cam.transform.right * 0.12f;
             var p = Projectile.Launch(visual, pos, dir * Data.ProjectileSpeed * Mathf.Lerp(0.45f, 1f, wind) + Player.Velocity * 0.4f,
                 Data.Damage * Mathf.Lerp(0.4f, 1f, wind), Player.gameObject);
+            p.WeaponId = Data.Id;
             p.RecoverAmmo = Data.Ammo;
             p.Blunt = true;
             p.Knockback = 3f;

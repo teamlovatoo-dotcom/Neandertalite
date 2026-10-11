@@ -11,6 +11,7 @@ namespace Neanderthal
         public float Damage;
         public float Gravity = 9.81f;
         public GameObject Owner;
+        public string WeaponId;                  // for the kill feed
         public string RecoverWeaponId;            // thrown spear -> becomes a spear pickup
         public AmmoType RecoverAmmo = AmmoType.None;
         public float Knockback = 2f;
@@ -72,7 +73,7 @@ namespace Neanderthal
             life = 0f;
             Vector3 dir = velocity.normalized;
             float speedFactor = Mathf.Clamp(velocity.magnitude / 40f, 0.5f, 1.2f);
-            bool hitCreature = Health.Apply(hit, Damage * speedFactor, dir, Owner, Knockback);
+            bool hitCreature = Health.Apply(hit, Damage * speedFactor, dir, Owner, Knockback, WeaponId);
 
             if (hitCreature)
             {

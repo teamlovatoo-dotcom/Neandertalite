@@ -49,6 +49,8 @@ namespace Neanderthal
         /// <summary>True while a menu (shop, crafting, pause) owns the mouse.</summary>
         public bool InputLocked => UIManager.AnyMenuOpen || UIManager.JustChanged || Health.IsDead;
         public float Yaw => yaw;
+        /// <summary>Mouse sensitivity scale while zoomed (set by the weapon holder from the FOV).</summary>
+        [System.NonSerialized] public float LookScale = 1f;
 
         Vector3 velocity;
         float yaw, pitch;
@@ -179,7 +181,7 @@ namespace Neanderthal
         {
             if (!InputLocked)
             {
-                Vector2 look = GameInput.Look;
+                Vector2 look = GameInput.Look * LookScale;
                 yaw += look.x;
                 pitch = Mathf.Clamp(pitch - look.y, -88f, 88f);
             }
