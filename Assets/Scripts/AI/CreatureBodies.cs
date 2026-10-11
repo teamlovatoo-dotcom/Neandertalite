@@ -17,6 +17,58 @@ namespace Neanderthal
         public float EyeHeight = 1.6f;
         public float StrideAmp = 30f;
         public bool Biped;
+
+        /// <summary>True when the body is the imported skinned model (bones with rest rotations).</summary>
+        public bool Skinned;
+        public readonly Dictionary<Transform, Quaternion> Rest = new Dictionary<Transform, Quaternion>();
+        readonly Dictionary<Transform, Vector3> current = new Dictionary<Transform, Vector3>();
+
+        /// <summary>
+        /// Rotate a limb by euler angles expressed in the body's own axes (x = pitch forward/back,
+        /// y = turn, z = roll sideways), relative to its rest pose. Works for primitives and bones alike.
+        /// </summary>
+        public void Pose(Transform bone, Vector3 euler)
+        {
+            if (bone == null) return;
+            current[bone] = euler;
+            if (!Skinned || !Rest.TryGetValue(bone, out var rest))
+            {
+                bone.localRotation = Quaternion.Euler(euler);
+                return;
+            }
+            var p = bone.parent;
+            Vector3 right = p.InverseTransformDirection(Root.right);
+            Vector3 up = p.InverseTransformDirection(Root.up);
+            Vector3 fwd = p.InverseTransformDirection(Root.forward);
+            bone.localRotation = Quaternion.AngleAxis(euler.y, up) * Quaternion.AngleAxis(euler.x, right) * Quaternion.AngleAxis(euler.z, fwd) * rest;
+        }
+
+        public void PoseSmooth(Transform bone, Vector3 target, float t)
+        {
+            if (bone == null) return;
+            current.TryGetValue(bone, out var cur);
+            Pose(bone, Vector3.Lerp(cur, target, Mathf.Clamp01(t)));
+        }
+    }
+
+    /// <summary>Imported art loaded from Resources. Missing files simply fall back to primitives.</summary>
+    public static class ModelLibrary
+    {
+        static GameObject neanderthal;
+        static bool tried;
+
+        public static GameObject Neanderthal
+        {
+            get
+            {
+                if (!tried)
+                {
+                    tried = true;
+                    neanderthal = Resources.Load<GameObject>("Models/Neanderthal");
+                }
+                return neanderthal;
+            }
+        }
     }
 
     /// <summary>Builds blockout bodies for every creature from primitives.</summary>
@@ -24,6 +76,11 @@ namespace Neanderthal
     {
         public static CreatureBody Neanderthal(Transform parent, string weaponId, Color? teamColor, int seed)
         {
+            if (ModelLibrary.Neanderthal != null)
+            {
+                var skinned = NeanderthalModel(parent, weaponId, teamColor, seed);
+                if (skinned != null) return skinned;
+            }
             var rnd = new System.Random(seed);
             float build = 0.95f + (float)rnd.NextDouble() * 0.12f;
             var b = new CreatureBody { Biped = true, Height = 1.75f * build, Radius = 0.38f, EyeHeight = 1.62f * build, StrideAmp = 35f };
@@ -95,6 +152,133 @@ namespace Neanderthal
                     model.localRotation = Quaternion.Euler(-90f, 0f, 0f);
                 }
                 b.HeldWeapon = model;
+            }
+            return b;
+        }
+
+        static Transform FindDeep(Transform t, string name)
+        {
+            if (t.name == name) return t;
+            foreach (Transform c in t)
+            {
+                var r = FindDeep(c, name);
+                if (r != null) return r;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Builds a body from the rigged Neanderthal.fbx (made by Tools/blender/make_neanderthal.py).
+        /// Orientation, scale and the arms-down rest pose are derived from the bones, so export axis settings don't matter.
+        /// </summary>
+        static CreatureBody NeanderthalModel(Transform parent, string weaponId, Color? teamColor, int seed)
+        {
+            var rnd = new System.Random(seed);
+            float build = 0.97f + (float)rnd.NextDouble() * 0.1f;
+            var root = Shapes.Pivot(parent, Vector3.zero, "Body");
+            var model = Object.Instantiate(ModelLibrary.Neanderthal, root, false);
+            model.name = "Model";
+            var t = model.transform;
+            Transform hips = FindDeep(t, "Hips"), head = FindDeep(t, "Head"), facing = FindDeep(t, "Facing");
+            Transform armL = FindDeep(t, "UpperArm.L"), armR = FindDeep(t, "UpperArm.R");
+            Transform foreL = FindDeep(t, "LowerArm.L"), foreR = FindDeep(t, "LowerArm.R");
+            Transform legL = FindDeep(t, "UpperLeg.L"), legR = FindDeep(t, "UpperLeg.R");
+            Transform neck = FindDeep(t, "Neck"), handL = FindDeep(t, "Hand.L"), handR = FindDeep(t, "Hand.R");
+            if (hips == null || head == null || facing == null || armL == null || armR == null || legL == null || legR == null || neck == null)
+            {
+                Object.Destroy(root.gameObject);
+                return null;
+            }
+
+            // Stand upright and face +Z of the body root.
+            Vector3 upDir = root.InverseTransformDirection(head.position - hips.position);
+            t.localRotation = Quaternion.FromToRotation(upDir, Vector3.up) * t.localRotation;
+            Vector3 face = root.InverseTransformDirection(facing.position - head.position);
+            face.y = 0f;
+            if (face.sqrMagnitude > 1e-6f) t.localRotation = Quaternion.FromToRotation(face.normalized, Vector3.forward) * t.localRotation;
+            // Scale so the hips sit at a Neanderthal-ish height, feet on the ground.
+            float hipsY = root.InverseTransformPoint(hips.position).y;
+            if (hipsY > 0.01f) t.localScale *= 0.9f * build / hipsY;
+            float footY = Mathf.Min(root.InverseTransformPoint(FindDeep(t, "Foot.L") != null ? FindDeep(t, "Foot.L").position : t.position).y, 0.09f * build);
+            t.localPosition += Vector3.down * (footY - 0.08f * build);
+
+            // T-pose -> arms hanging slightly outwards.
+            foreach (var (upper, lower) in new[] { (armL, foreL), (armR, foreR) })
+            {
+                if (lower == null) continue;
+                Vector3 dir = lower.position - upper.position;
+                float side = Mathf.Sign(root.InverseTransformDirection(dir).x);
+                Vector3 target = root.TransformDirection(new Vector3(side * 0.22f, -1f, 0.05f).normalized);
+                upper.rotation = Quaternion.FromToRotation(dir, target) * upper.rotation;
+            }
+
+            var b = new CreatureBody { Biped = true, Skinned = true, Root = root, Height = 1.75f * build, Radius = 0.38f, EyeHeight = 1.62f * build, StrideAmp = 32f };
+            b.Legs.Add(legL); b.LegPhase.Add(0f);
+            b.Legs.Add(legR); b.LegPhase.Add(Mathf.PI);
+            b.ArmL = armL; b.ArmR = armR; b.Neck = neck; b.Head = head;
+            foreach (var bone in new[] { legL, legR, armL, armR, neck }) b.Rest[bone] = bone.localRotation;
+
+            // Materials: skin tone varies per hunter.
+            var skinTone = Color.Lerp(new Color(0.42f, 0.26f, 0.17f), new Color(0.3f, 0.18f, 0.11f), (float)rnd.NextDouble());
+            var skin = Mat.Textured("np_skin_" + ColorUtility.ToHtmlStringRGB(skinTone),
+                Mat.NoiseTexture(128, skinTone * 1.08f, skinTone * 0.82f, 9f, 21), 0.35f);
+            var fur = Mat.Textured("np_fur", Mat.NoiseTexture(128, new Color(0.36f, 0.25f, 0.15f), new Color(0.16f, 0.1f, 0.06f), 26f, 4), 0.05f, new Vector2(3, 3));
+            var hair = Mat.Textured("np_hair", Mat.NoiseTexture(128, new Color(0.11f, 0.075f, 0.05f), new Color(0.03f, 0.02f, 0.015f), 40f, 8), 0.25f, new Vector2(2, 6));
+            var rope = Mat.Get(new Color(0.45f, 0.35f, 0.22f), 0.1f);
+            var eyes = Mat.Get(new Color(0.03f, 0.02f, 0.015f), 0.85f);
+            foreach (var smr in model.GetComponentsInChildren<SkinnedMeshRenderer>())
+            {
+                smr.updateWhenOffscreen = true;
+                smr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
+                var mats = smr.sharedMaterials;
+                for (int i = 0; i < mats.Length; i++)
+                {
+                    string n = mats[i] != null ? mats[i].name : "";
+                    mats[i] = n.Contains("Fur") ? fur : n.Contains("Hair") ? hair : n.Contains("Eye") ? eyes : n.Contains("Rope") ? rope : skin;
+                }
+                smr.sharedMaterials = mats;
+            }
+
+            // Hit volumes: body capsule up to the shoulders, separate head sphere for headshots.
+            var bodyCol = root.gameObject.AddComponent<CapsuleCollider>();
+            bodyCol.center = new Vector3(0f, 0.76f * build, 0f);
+            bodyCol.height = 1.52f * build;
+            bodyCol.radius = 0.27f;
+            root.gameObject.AddComponent<Hitbox>().Multiplier = 1f;
+            var headCol = new GameObject("HeadHitbox");
+            headCol.transform.SetParent(head, false);
+            headCol.transform.position = Vector3.Lerp(head.position, facing.position, 0.5f) + root.up * 0.03f;
+            var sc = headCol.AddComponent<SphereCollider>();
+            sc.radius = 0.14f / Mathf.Max(0.001f, headCol.transform.lossyScale.x);
+            var hb = headCol.AddComponent<Hitbox>();
+            hb.Multiplier = 2f;
+            hb.IsHead = true;
+
+            if (teamColor.HasValue)
+            {
+                var foreArm = foreL != null ? foreL : armL;
+                var band = Shapes.Pivot(armL, Vector3.zero, "TeamBand");
+                band.position = Vector3.Lerp(armL.position, foreArm.position, 0.35f);
+                band.rotation = Quaternion.FromToRotation(Vector3.up, foreArm.position - armL.position);
+                band.localScale = Vector3.one / Mathf.Max(0.001f, armL.lossyScale.x);
+                Shapes.Cyl(band, Vector3.zero, new Vector3(0.21f, 0.03f, 0.21f), Mat.Get(teamColor.Value), null, false);
+            }
+
+            if (!string.IsNullOrEmpty(weaponId))
+            {
+                var data = ItemDatabase.Weapon(weaponId);
+                bool bow = data != null && data.Kind == WeaponKind.Bow;
+                var hand = bow ? (handL != null ? handL : armL) : (handR != null ? handR : armR);
+                var grip = new GameObject(bow ? "HandL" : "Hand").transform;
+                grip.SetParent(hand, false);
+                grip.position = hand.position + root.forward * 0.03f;
+                grip.rotation = root.rotation;
+                grip.localScale = Vector3.one / Mathf.Max(0.001f, hand.lossyScale.x);
+                var weaponModel = WeaponModels.Build(weaponId, grip, out var bs).transform;
+                weaponModel.localRotation = Quaternion.Euler(-90f, 0f, 0f);
+                Shapes.SetShadows(weaponModel.gameObject, true);
+                if (bow) { b.Bow = bs; if (bs != null) bs.ShowArrow = false; }
+                b.HeldWeapon = weaponModel;
             }
             return b;
         }

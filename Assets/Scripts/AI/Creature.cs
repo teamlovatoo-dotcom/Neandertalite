@@ -561,7 +561,7 @@ namespace Neanderthal
             gaitPhase += dt * (3f + currentSpeed * (Body.Biped ? 2.2f : 2.6f)) * (Type == CreatureType.Mammoth ? 0.5f : 1f);
             float amp = Body.StrideAmp * Mathf.Clamp01(currentSpeed / 1.5f);
             for (int i = 0; i < Body.Legs.Count; i++)
-                Body.Legs[i].localRotation = Quaternion.Euler(Mathf.Sin(gaitPhase + Body.LegPhase[i]) * amp, 0f, 0f);
+                Body.Pose(Body.Legs[i], new Vector3(Mathf.Sin(gaitPhase + Body.LegPhase[i]) * amp, 0f, 0f));
 
             float attackPose = 0f;
             if (windup >= 0f)
@@ -575,20 +575,20 @@ namespace Neanderthal
                 if (rangedWindup && windup >= 0f || state == State.Ranged)
                 {
                     // Bow raised: left arm forward, right arm draws.
-                    Body.ArmL.localRotation = Quaternion.Slerp(Body.ArmL.localRotation, Quaternion.Euler(-85f, 0f, 0f), dt * 10f);
-                    Body.ArmR.localRotation = Quaternion.Slerp(Body.ArmR.localRotation, Quaternion.Euler(-85f + attackPose * 10f, -35f * attackPose, 0f), dt * 10f);
+                    Body.PoseSmooth(Body.ArmL, new Vector3(-85f, 0f, 0f), dt * 10f);
+                    Body.PoseSmooth(Body.ArmR, new Vector3(-85f + attackPose * 10f, -35f * attackPose, 0f), dt * 10f);
                 }
                 else if (windup >= 0f)
                 {
                     // Raise then stab.
                     float a = attackPose < 0.7f ? Mathf.Lerp(0f, -150f, attackPose / 0.7f) : Mathf.Lerp(-150f, -60f, (attackPose - 0.7f) / 0.3f);
-                    Body.ArmR.localRotation = Quaternion.Euler(a, 0f, 0f);
+                    Body.Pose(Body.ArmR, new Vector3(a, 0f, 0f));
                 }
                 else
                 {
                     float swing = Mathf.Sin(gaitPhase) * amp * 0.6f;
-                    Body.ArmL.localRotation = Quaternion.Slerp(Body.ArmL.localRotation, Quaternion.Euler(swing, 0f, -5f), dt * 8f);
-                    Body.ArmR.localRotation = Quaternion.Slerp(Body.ArmR.localRotation, Quaternion.Euler(-swing - 20f, 0f, 5f), dt * 8f);
+                    Body.PoseSmooth(Body.ArmL, new Vector3(swing, 0f, -5f), dt * 8f);
+                    Body.PoseSmooth(Body.ArmR, new Vector3(-swing - 20f, 0f, 5f), dt * 8f);
                 }
                 Body.Root.localRotation = Quaternion.Euler(speedNorm * 8f, 0f, 0f);
             }
@@ -597,7 +597,7 @@ namespace Neanderthal
                 // Head bob / lunge
                 float lunge = windup >= 0f ? Mathf.Sin(attackPose * Mathf.PI) : 0f;
                 float headPitch = Type == CreatureType.Mammoth ? -lunge * 25f : lunge * 25f;
-                Body.Neck.localRotation = Quaternion.Euler(headPitch + Mathf.Sin(gaitPhase * 2f) * 3f * speedNorm, 0f, 0f);
+                Body.Pose(Body.Neck, new Vector3(headPitch + Mathf.Sin(gaitPhase * 2f) * 3f * speedNorm, 0f, 0f));
                 Body.Root.localPosition = new Vector3(0f, Mathf.Abs(Mathf.Sin(gaitPhase)) * 0.04f * speedNorm, lunge * Body.Radius * 0.5f);
             }
         }
