@@ -11,6 +11,8 @@ namespace Neanderthal
     public class CatacombsLevel : MonoBehaviour
     {
         static CatacombsLayout L;
+        /// <summary>Height of the terrain actually built (what props must stand on).</summary>
+        static System.Func<float, float, float> Ground;
         static Material wallMat, floorMat, ceilMat, stoneMat, cliffMat;
 
         public static float Height(float x, float z) => L != null ? L.Height(x, z) : 0f;
@@ -48,7 +50,14 @@ namespace Neanderthal
                 new Color(0.5f, 0.58f, 0.66f), new Color(0.4f, 0.41f, 0.36f), new Color(0.18f, 0.16f, 0.12f),
                 new Color(0.58f, 0.63f, 0.66f), 0.004f, new Color(0.97f, 1f, 0.95f), "sky_forest");
 
-            BuildTerrain(root);
+            var terrain = BuildTerrain(root);
+            if (terrain != null)
+            {
+                var tp = terrain.transform.position;
+                Ground = (x, z) => terrain.SampleHeight(new Vector3(x, 0f, z)) + tp.y;
+                SelfCheck();
+            }
+            else Ground = L.Height;
             ArenaLevels.Boundary(root, 132f);
 
             Mats();
@@ -59,26 +68,50 @@ namespace Neanderthal
                 Shapes.Box(under, b.Center, b.Size, For(b.Part), rot).name = b.Part.ToString();
             }
             foreach (var t in L.Torches) WallTorch(under, t.Pos, t.Yaw);
-            foreach (var t in L.TorchPosts) Scenery.TorchPost(root, new Vector3(t.Pos.x, L.Height(t.Pos.x, t.Pos.z), t.Pos.z));
+            foreach (var t in L.TorchPosts) Scenery.TorchPost(root, new Vector3(t.Pos.x, Ground(t.Pos.x, t.Pos.z), t.Pos.z));
             foreach (var d in L.Decor) Decor(under, d);
 
             BuildWaterfall(root);
             foreach (var w in L.Waters) Scenery.WaterPlane(root, w.Center, w.Size);
-            foreach (var z in L.WaterZones) WaterZones.Register(z.area, z.y);
+            foreach (var z in L.WaterZones) WaterZones.Register(z.area, z.y, z.y - 3.6f);   // dry tunnels below
             BuildSurface(root);
 
-            foreach (var s in L.Spawns) A.Spawns.Add(new SpawnPoint(s.Pos, s.Yaw));
-            foreach (var p in L.Pickups) Pickup(root, p);
+            foreach (var s in L.Spawns) A.Spawns.Add(new SpawnPoint(Snap(s.Pos, 0.2f), s.Yaw));
+            foreach (var p in L.Pickups) { var q = p; q.Pos = Snap(p.Pos, 0.12f); Pickup(root, q); }
 
             root.gameObject.AddComponent<CatacombsLevel>();
             return A;
         }
 
-        static void BuildTerrain(Transform root)
+        /// <summary>Surface positions are put back exactly on the built terrain; underground ones are left alone.</summary>
+        static Vector3 Snap(Vector3 p, float lift)
+        {
+            if (p.y < -6f || L.IsHole(p.x, p.z) || L.Underground(p)) return p;
+            float g = Ground(p.x, p.z);
+            return Mathf.Abs(p.y - lift - L.Height(p.x, p.z)) < 0.3f ? new Vector3(p.x, g + lift, p.z) : p;
+        }
+
+        /// <summary>Logs if the built terrain differs from the layout (props would float or sink).</summary>
+        static void SelfCheck()
+        {
+            float worst = 0f;
+            Vector2 at = Vector2.zero;
+            for (float x = -140f; x <= 140f; x += 7f)
+            for (float z = -140f; z <= 140f; z += 7f)
+            {
+                if (L.NearHole(x, z, 1f)) continue;
+                float d = Mathf.Abs(Ground(x, z) - L.Height(x, z));
+                if (d > worst) { worst = d; at = new Vector2(x, z); }
+            }
+            if (worst > 0.35f) Debug.LogWarning($"Підземелля: terrain differs from layout by {worst:0.00} m at {at}");
+            else Debug.Log($"Підземелля: terrain matches layout (max {worst:0.00} m)");
+        }
+
+        static Terrain BuildTerrain(Transform root)
         {
             var layers = new[] { TextureLibrary.Layer("grass", 5f), TextureLibrary.Layer("forest_ground", 6f), TextureLibrary.Layer("river_sand", 4f),
                                  TextureLibrary.Layer("rock_face", 9f), TextureLibrary.Layer("leaf_litter", 6f) };
-            var terrain = TerrainBuilder.BuildTextured(root, CatacombsLayout.Half * 2f, 769, L.Height, layers, (x, z, h, sl, w) =>
+            var terrain = TerrainBuilder.BuildTextured(root, CatacombsLayout.Half * 2f, 1025, L.Height, layers, (x, z, h, sl, w) =>
             {
                 w[0] = 1f;
                 w[1] = Mathf.Clamp01((Mat.Fbm(x * 0.04f + 3f, z * 0.04f, 3) - 0.45f) * 3f);
@@ -92,8 +125,9 @@ namespace Neanderthal
                 w[2] = sand * 2.5f;
                 w[3] = Mathf.Clamp01((sl - 0.42f) * 4f) * 3f;
                 w[4] = Mathf.Clamp01((Mat.Fbm(x * 0.07f + 11f, z * 0.07f, 2) - 0.5f) * 3f) * (1f - sand);
-            }, 768, L.IsHole);
+            }, 512, L.IsHole);
             if (terrain == null) TerrainBuilder.Build(root, CatacombsLayout.Half * 2f, 200, L.Height, (x, z, h, s) => TerrainBuilder.NaturalGround(x, z, h, s, 0f, 0f), 2048);
+            return terrain;
         }
 
         static void WallTorch(Transform t, Vector3 pos, float yaw)
@@ -148,8 +182,8 @@ namespace Neanderthal
             // Rock faces softening the cliff block's edges.
             if (PropLibrary.Has(PropLibrary.Kind.CliffA))
             {
-                PropLibrary.Spawn(PropLibrary.Kind.CliffB, t, new Vector3(-38f, L.Height(-38f, 63f) - 2f, 63f), 160f, 2.2f, 0, true);
-                PropLibrary.Spawn(PropLibrary.Kind.CliffA, t, new Vector3(2f, L.Height(2f, 63f) - 2f, 63f), 205f, 2.2f, 0, true);
+                PropLibrary.Spawn(PropLibrary.Kind.CliffB, t, new Vector3(-38f, Ground(-38f, 63f) - 2f, 63f), 160f, 2.2f, 0, true);
+                PropLibrary.Spawn(PropLibrary.Kind.CliffA, t, new Vector3(2f, Ground(2f, 63f) - 2f, 63f), 205f, 2.2f, 0, true);
             }
             for (int k = 0; k < 6; k++)
             {
@@ -219,7 +253,7 @@ namespace Neanderthal
         {
             if (L.Wet(x, z) || L.NearPortal(x, z, 10f + margin) || L.NearHole(x, z, 2.5f + margin)) return false;
             if (x > -40f && x < 4f && z > 54f && z < 82f) return false;               // waterfall cliff & pool rim
-            if (ArenaLevels.Slope(L.Height, x, z) > 0.6f) return false;
+            if (ArenaLevels.Slope(Ground, x, z) > 0.6f) return false;
             if (Vector2.Distance(new Vector2(x, z), CatacombsLayout.CampE) < 14f + margin) return false;
             if (Vector2.Distance(new Vector2(x, z), CatacombsLayout.CampW) < 14f + margin) return false;
             foreach (var s in L.Spawns) if (s.Pos.y > -6f && Vector2.Distance(new Vector2(x, z), new Vector2(s.Pos.x, s.Pos.z)) < 3f) return false;
@@ -236,40 +270,40 @@ namespace Neanderthal
             var trees = Shapes.Pivot(root, Vector3.zero, "Trees");
             foreach (var p in Scenery.Scatter(rnd, 300, area, wide, 9000))
             {
-                var pos = new Vector3(p.x, L.Height(p.x, p.z) - 0.2f, p.z);
+                var pos = new Vector3(p.x, Ground(p.x, p.z) - 0.2f, p.z);
                 if (rnd.NextDouble() < 0.8) Scenery.Pine(trees, pos, 10f + (float)rnd.NextDouble() * 9f, rnd.Next());
                 else Scenery.BroadTree(trees, pos, 7f + (float)rnd.NextDouble() * 4f, rnd.Next());
             }
             foreach (var p in Scenery.Scatter(rnd, 40, area, wide))
             {
                 float s = 1f + (float)rnd.NextDouble() * 2.5f;
-                Scenery.Rock(root, new Vector3(p.x, L.Height(p.x, p.z), p.z), new Vector3(s * 1.4f, s, s), (float)rnd.NextDouble() * 360f, false, false, rnd.Next(4));
+                Scenery.Rock(root, new Vector3(p.x, Ground(p.x, p.z), p.z), new Vector3(s * 1.4f, s, s), (float)rnd.NextDouble() * 360f, false, false, rnd.Next(4));
             }
             var prnd = new System.Random(31);
-            PropLibrary.Scatter(PropLibrary.Kind.Fern, root, prnd, 380, area, L.Height, free, 1.1f, 2f, false);
-            PropLibrary.Scatter(PropLibrary.Kind.Shrub, root, prnd, 110, area, L.Height, free, 1.8f, 3.2f, false);
-            PropLibrary.Scatter(PropLibrary.Kind.MossRock, root, prnd, 70, area, L.Height, free, 0.8f, 2f, true);
-            PropLibrary.Scatter(PropLibrary.Kind.Branches, root, prnd, 90, area, L.Height, free, 1.2f, 2.2f, false);
-            PropLibrary.Scatter(PropLibrary.Kind.Stump, root, prnd, 20, area, L.Height, free, 0.8f, 1.3f, true);
-            PropLibrary.Scatter(PropLibrary.Kind.Log, root, prnd, 22, area, L.Height, wide, 1.6f, 2.4f, true);
-            PropLibrary.Scatter(PropLibrary.Kind.BigStump, root, prnd, 8, area, L.Height, wide, 0.9f, 1.3f, true);
-            PropLibrary.Scatter(PropLibrary.Kind.Rock, root, prnd, 40, area, L.Height, free, 3f, 7f, true, null, 0.15f);
+            PropLibrary.Scatter(PropLibrary.Kind.Fern, root, prnd, 380, area, Ground, free, 1.1f, 2f, false);
+            PropLibrary.Scatter(PropLibrary.Kind.Shrub, root, prnd, 110, area, Ground, free, 1.8f, 3.2f, false);
+            PropLibrary.Scatter(PropLibrary.Kind.MossRock, root, prnd, 70, area, Ground, free, 0.8f, 2f, true);
+            PropLibrary.Scatter(PropLibrary.Kind.Branches, root, prnd, 90, area, Ground, free, 1.2f, 2.2f, false);
+            PropLibrary.Scatter(PropLibrary.Kind.Stump, root, prnd, 20, area, Ground, free, 0.8f, 1.3f, true);
+            PropLibrary.Scatter(PropLibrary.Kind.Log, root, prnd, 22, area, Ground, wide, 1.6f, 2.4f, true);
+            PropLibrary.Scatter(PropLibrary.Kind.BigStump, root, prnd, 8, area, Ground, wide, 0.9f, 1.3f, true);
+            PropLibrary.Scatter(PropLibrary.Kind.Rock, root, prnd, 40, area, Ground, free, 3f, 7f, true, null, 0.15f);
             // Ferns on the banks (dry ground only).
-            PropLibrary.Scatter(PropLibrary.Kind.Fern, root, prnd, 90, area, L.Height, (x, z) =>
-                !L.Wet(x, z) && L.Height(x, z) > 0.4f && Free(x, z, -4f) &&
+            PropLibrary.Scatter(PropLibrary.Kind.Fern, root, prnd, 90, area, Ground, (x, z) =>
+                !L.Wet(x, z) && Ground(x, z) > 0.4f && Free(x, z, -4f) &&
                 (Vector2.Distance(new Vector2(x, z), CatacombsLayout.Pool) < 18f || (z < 46f && Mathf.Abs(x - CatacombsLayout.StreamX(z)) < 8.5f)), 1.2f, 2.2f, false);
-            PropLibrary.CliffRing(root, prnd, 128f, 40, L.Height, 2.6f, 3.8f);
+            PropLibrary.CliffRing(root, prnd, 128f, 40, Ground, 2.6f, 3.8f);
 
-            GrassField.Create(root, new Rect(-118, -118, 236, 236), 0.9f, L.Height, (x, z) =>
+            GrassField.Create(root, new Rect(-118, -118, 236, 236), 0.9f, Ground, (x, z) =>
             {
-                if (L.Wet(x, z) || L.Height(x, z) < 0.3f || L.NearPortal(x, z, 8f) || L.NearHole(x, z, 1.5f)) return 0f;
+                if (L.Wet(x, z) || Ground(x, z) < 0.3f || L.NearPortal(x, z, 8f) || L.NearHole(x, z, 1.5f)) return 0f;
                 if (x > -40f && x < 4f && z > 56f && z < 80f) return 0f;
-                if (ArenaLevels.Slope(L.Height, x, z) > 0.55f) return 0f;
+                if (ArenaLevels.Slope(Ground, x, z) > 0.55f) return 0f;
                 return Mathf.Clamp01((Mat.Fbm(x * 0.08f + 7f, z * 0.08f, 2) - 0.25f) * 2.2f);
             }, new[] { new Color(0.22f, 0.32f, 0.11f), new Color(0.3f, 0.37f, 0.13f), new Color(0.17f, 0.26f, 0.09f) }, 21);
 
-            Camp.Build(root, new Vector3(CatacombsLayout.CampE.x, 0f, CatacombsLayout.CampE.y), L.Height, 11, true, 8f);
-            Camp.Build(root, new Vector3(CatacombsLayout.CampW.x, 0f, CatacombsLayout.CampW.y), L.Height, 12, false, 7f);
+            Camp.Build(root, new Vector3(CatacombsLayout.CampE.x, 0f, CatacombsLayout.CampE.y), Ground, 11, true, 8f);
+            Camp.Build(root, new Vector3(CatacombsLayout.CampW.x, 0f, CatacombsLayout.CampW.y), Ground, 12, false, 7f);
         }
 
         // ------------------------------------------------------------------ atmosphere
@@ -294,8 +328,7 @@ namespace Neanderthal
             // Below ground the daylight goes away completely (no sun leaking through wall joints):
             // only the torches and fires light the catacombs.
             Vector3 p = cam.transform.position;
-            float depth = L.Height(p.x, p.z) - p.y;
-            float target = L.IsHole(p.x, p.z) ? 0f : Mathf.InverseLerp(2.5f, 6f, depth);
+            float target = L.Underground(p) ? 1f : 0f;
             under = Mathf.MoveTowards(under, target, Time.deltaTime * 1.2f);
             float k = Mathf.Lerp(1f, 0.06f, under);
             RenderSettings.ambientSkyColor = sky * k;

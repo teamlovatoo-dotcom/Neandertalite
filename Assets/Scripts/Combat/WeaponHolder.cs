@@ -25,12 +25,19 @@ namespace Neanderthal
         float switchAnim;               // 1 = fully lowered
         string pendingSwitch;
         float baseFov = 80f;
+        public const float ViewScale = 0.3f;
 
         public void Init(PlayerController player)
         {
             Player = player;
+            // The viewmodel is shrunk around the camera: it looks exactly the same on screen (uniform scaling about the
+            // eye doesn't change the perspective image) but now fits inside the player's body, so it never pokes
+            // through walls, trees or rocks.
+            var shrink = new GameObject("ViewModelScale").transform;
+            shrink.SetParent(player.Cam.transform, false);
+            shrink.localScale = Vector3.one * ViewScale;
             ViewRoot = new GameObject("ViewModel").transform;
-            ViewRoot.SetParent(player.Cam.transform, false);
+            ViewRoot.SetParent(shrink, false);
             player.Inventory.WeaponAdded += OnWeaponAdded;
         }
 

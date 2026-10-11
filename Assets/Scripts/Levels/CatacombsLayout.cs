@@ -146,6 +146,13 @@ namespace Neanderthal
             return false;
         }
 
+        /// <summary>True inside a covered catacomb cell (under a ceiling), where daylight must not reach.</summary>
+        public bool Underground(Vector3 p)
+        {
+            if (!Cells.TryGetValue((Mathf.RoundToInt(p.x / S), Mathf.RoundToInt(p.z / S)), out var c) || c.OpenAir) return false;
+            return p.y > c.MinY - 1f && p.y < c.MaxY + CeilH;
+        }
+
         public bool NearHole(float x, float z, float margin)
         {
             foreach (var r in Holes)
@@ -509,7 +516,7 @@ namespace Neanderthal
         {
             // Pool and stream share one level and their planes only touch (no overlapping, flickering water).
             Waters.Add(new Water { Center = new Vector3(Pool.x, PoolWater, 50f), Size = new Vector2(24f, 20f) });
-            WaterZones.Add((new Rect(Pool.x - 12f, 40f, 24f, 20f), PoolWater));
+            WaterZones.Add((new Rect(Pool.x - 12f, 40f, 24f, 20f), PoolWater));   // (bottoms: see CatacombsLevel)
             Strips(40f, -118f, 20f, StreamX, 6.5f, StreamWater);
             // River: the stone slot above the waterfall, then the meandering channel up to its spring.
             Waters.Add(new Water { Center = new Vector3(-18f, RiverWater, (CliffFront + CliffBack) * 0.5f), Size = new Vector2(6.2f, CliffBack - CliffFront) });

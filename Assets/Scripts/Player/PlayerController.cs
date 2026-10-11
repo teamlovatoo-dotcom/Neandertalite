@@ -101,7 +101,7 @@ namespace Neanderthal
             eyeHeight = 1.65f;
             camGo.transform.localPosition = new Vector3(0, eyeHeight, 0);
             Cam = camGo.AddComponent<Camera>();
-            Cam.nearClipPlane = 0.03f;
+            Cam.nearClipPlane = 0.015f;
             Cam.farClipPlane = 900f;
             Cam.fieldOfView = Profile.Current.Fov;
             camGo.AddComponent<AudioListener>();

@@ -95,7 +95,10 @@ namespace Neanderthal
         {
             foreach (var l in layers) if (l == null) return null;
             float half = size * 0.5f;
-            int n = heightRes;
+            // Unity only accepts 2^k+1 heightmaps and 2^k splat maps; anything else is silently changed and the
+            // heights would land on only part of the terrain.
+            int n = Mathf.Clamp(Mathf.ClosestPowerOfTwo(heightRes - 1), 32, 4096) + 1;
+            alphaRes = Mathf.Clamp(Mathf.ClosestPowerOfTwo(alphaRes), 16, 2048);
             var hs = new float[n, n];
             float minH = float.MaxValue, maxH = float.MinValue;
             for (int j = 0; j < n; j++)
