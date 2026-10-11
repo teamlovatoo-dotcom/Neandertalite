@@ -9,7 +9,26 @@ namespace Neanderthal
         static Mesh[] rockMeshes;
         static Material rockMat, rockRedMat, barkMat, concreteMat, caveMat, woodMat;
 
-        public static void Lighting(Transform parent, Color sun, float sunIntensity, Vector3 sunEuler, Color sky, Color equator, Color ground, Color fog, float fogDensity, Color? grade = null)
+        /// <summary>Measured from the Poly Haven HDRIs in Resources/Sky (sun direction, brightness, horizon/zenith colour).</summary>
+        struct SkyInfo
+        {
+            public float SunYaw, SunElevation, Exposure;
+            public Color Horizon, Zenith;
+        }
+
+        static bool TryGetSky(string name, out SkyInfo info)
+        {
+            switch (name)
+            {
+                case "sky_forest": info = new SkyInfo { SunYaw = 124.2f, SunElevation = 47.9f, Exposure = 1.8f, Horizon = new Color(0.44f, 0.473f, 0.574f), Zenith = new Color(0.505f, 0.548f, 0.699f) }; return true;
+                case "sky_canyon": info = new SkyInfo { SunYaw = 126.1f, SunElevation = 43f, Exposure = 2.0f, Horizon = new Color(0.636f, 0.699f, 0.791f), Zenith = new Color(0.127f, 0.187f, 0.312f) }; return true;
+                case "sky_valley": info = new SkyInfo { SunYaw = 126.1f, SunElevation = 43f, Exposure = 2.4f, Horizon = new Color(0.47f, 0.504f, 0.449f), Zenith = new Color(0.121f, 0.166f, 0.209f) }; return true;
+            }
+            info = default;
+            return false;
+        }
+
+        public static void Lighting(Transform parent, Color sun, float sunIntensity, Vector3 sunEuler, Color sky, Color equator, Color ground, Color fog, float fogDensity, Color? grade = null, string skyName = null)
         {
             var go = new GameObject("Sun");
             go.transform.SetParent(parent, false);
@@ -42,8 +61,47 @@ namespace Neanderthal
                 if (skyMat.HasProperty("_SunSize")) skyMat.SetFloat("_SunSize", 0.035f);
                 RenderSettings.skybox = skyMat;
             }
+            // Photographed sky (HDRI): rotated so its sun sits where the level's sun shines from.
+            var skyTex = skyName != null ? Resources.Load<Texture>("Sky/" + skyName) : null;
+            var pano = Shader.Find("Skybox/Panoramic");
+            if (skyTex != null && pano != null && TryGetSky(skyName, out var info))
+            {
+                var skyMat = new Material(pano) { name = skyName };
+                skyMat.SetTexture("_MainTex", skyTex);
+                if (skyMat.HasProperty("_Mapping")) skyMat.SetFloat("_Mapping", 1f);
+                if (skyMat.HasProperty("_ImageType")) skyMat.SetFloat("_ImageType", 0f);
+                skyMat.SetFloat("_Exposure", info.Exposure);
+                float targetYaw = sunEuler.y + 180f;
+                skyMat.SetFloat("_Rotation", Mathf.Repeat(info.SunYaw - targetYaw, 360f));
+                RenderSettings.skybox = skyMat;
+                go.transform.rotation = Quaternion.Euler(Mathf.Clamp(info.SunElevation, 30f, 58f), sunEuler.y, 0f);
+                // Ambient follows the sky colours (the sun itself is left to the directional light).
+                Color zen = (info.Zenith * info.Exposure * 0.55f).gamma, hor = (info.Horizon * info.Exposure * 0.55f).gamma;
+                RenderSettings.ambientSkyColor = Color.Lerp(sky * 1.3f, zen, 0.5f);
+                RenderSettings.ambientEquatorColor = Color.Lerp(equator * 1.3f, hor, 0.45f);
+                RenderSettings.fogColor = Color.Lerp(fog, (info.Horizon * info.Exposure * 0.8f).gamma, 0.65f);
+            }
             DynamicGI.UpdateEnvironment();
+            ReflectionProbeFor(parent);
             Neanderthal.Rendering.PostFx.CreateVolume(parent, grade ?? new Color(1f, 0.97f, 0.92f));
+        }
+
+        /// <summary>A realtime sky reflection probe so water, obsidian and wet rock reflect the real sky.</summary>
+        static void ReflectionProbeFor(Transform parent)
+        {
+            var go = new GameObject("SkyReflections");
+            go.transform.SetParent(parent, false);
+            go.transform.position = new Vector3(0f, 20f, 0f);
+            var probe = go.AddComponent<ReflectionProbe>();
+            probe.mode = UnityEngine.Rendering.ReflectionProbeMode.Realtime;
+            probe.refreshMode = UnityEngine.Rendering.ReflectionProbeRefreshMode.ViaScripting;
+            probe.timeSlicingMode = UnityEngine.Rendering.ReflectionProbeTimeSlicingMode.NoTimeSlicing;
+            probe.size = new Vector3(600f, 300f, 600f);
+            probe.resolution = 128;
+            probe.cullingMask = 0;
+            probe.clearFlags = UnityEngine.Rendering.ReflectionProbeClearFlags.Skybox;
+            probe.importance = 0;
+            probe.RenderProbe();
         }
 
         static void EnsureMats()

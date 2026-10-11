@@ -23,6 +23,7 @@ namespace Neanderthal.Rendering.EditorTools
             {
                 if (EditorApplication.isPlayingOrWillChangePlaymode) return;
                 if (GraphicsSettings.defaultRenderPipeline == null) Setup();
+                else EnsureAmbientOcclusion();
             };
         }
 
@@ -75,6 +76,43 @@ namespace Neanderthal.Rendering.EditorTools
             PlayerSettings.colorSpace = ColorSpace.Linear;
             AssetDatabase.SaveAssets();
             Debug.Log("Neanderthal: URP (HD) is now the active render pipeline.");
+            EnsureAmbientOcclusion();
+        }
+
+        /// <summary>Adds Screen Space Ambient Occlusion (contact shadows in grass, under rocks, inside huts) once.</summary>
+        [MenuItem("Neanderthal/Graphics/Add ambient occlusion (SSAO)")]
+        public static void EnsureAmbientOcclusion()
+        {
+            var renderer = AssetDatabase.LoadAssetAtPath<UniversalRendererData>(RendererPath);
+            if (renderer == null) return;
+            foreach (var f in renderer.rendererFeatures)
+                if (f != null && f.GetType().Name == "ScreenSpaceAmbientOcclusion") return;
+            var type = typeof(UniversalRendererData).Assembly.GetType("UnityEngine.Rendering.Universal.ScreenSpaceAmbientOcclusion");
+            if (type == null) return;
+            var feature = ScriptableObject.CreateInstance(type) as ScriptableRendererFeature;
+            if (feature == null) return;
+            feature.name = "ScreenSpaceAmbientOcclusion";
+            AssetDatabase.AddObjectToAsset(feature, renderer);
+            AssetDatabase.TryGetGUIDAndLocalFileIdentifier(feature, out string _, out long localId);
+
+            var fso = new SerializedObject(feature);
+            Set(fso, "m_Settings.Intensity", 1.6f);
+            Set(fso, "m_Settings.Radius", 0.45f);
+            Set(fso, "m_Settings.DirectLightingStrength", 0.3f);
+            fso.ApplyModifiedPropertiesWithoutUndo();
+
+            var so = new SerializedObject(renderer);
+            var list = so.FindProperty("m_RendererFeatures");
+            var map = so.FindProperty("m_RendererFeatureMap");
+            if (list == null || map == null) return;
+            list.arraySize++;
+            list.GetArrayElementAtIndex(list.arraySize - 1).objectReferenceValue = feature;
+            map.arraySize++;
+            map.GetArrayElementAtIndex(map.arraySize - 1).longValue = localId;
+            so.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(renderer);
+            AssetDatabase.SaveAssets();
+            Debug.Log("Neanderthal: ambient occlusion (SSAO) enabled.");
         }
 
         static void Set(SerializedObject so, string name, object value)

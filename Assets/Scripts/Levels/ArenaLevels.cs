@@ -64,7 +64,7 @@ namespace Neanderthal
             var L = new ArenaLayout { Name = "Печерний ліс", Center = new Vector3(0, 0, 0) };
             Scenery.Lighting(root, new Color(1f, 0.9f, 0.75f), 1.1f, new Vector3(32f, -60f, 0f),
                 new Color(0.5f, 0.58f, 0.66f), new Color(0.38f, 0.4f, 0.35f), new Color(0.18f, 0.16f, 0.12f),
-                new Color(0.55f, 0.6f, 0.58f), 0.012f, new Color(0.95f, 1f, 0.94f));
+                new Color(0.55f, 0.6f, 0.58f), 0.012f, new Color(0.95f, 1f, 0.94f), "sky_forest");
             var forestLayers = new[] { TextureLibrary.Layer("grass", 5f), TextureLibrary.Layer("forest_ground", 6f), TextureLibrary.Layer("river_sand", 4f), TextureLibrary.Layer("rock_face", 8f) };
             if (TerrainBuilder.BuildTextured(root, 130f, 513, ForestHeight, forestLayers, (x, z, h, sl, w) =>
             {
@@ -160,6 +160,11 @@ namespace Neanderthal
             PropLibrary.Scatter(PropLibrary.Kind.Branches, root, prnd, 40, area, ForestHeight, forestFloor, 1.2f, 2f, false);
             PropLibrary.Scatter(PropLibrary.Kind.Stump, root, prnd, 10, area, ForestHeight, forestFloor, 0.8f, 1.2f, true);
             PropLibrary.Scatter(PropLibrary.Kind.Log, root, prnd, 8, area, ForestHeight, forestFloor, 1.6f, 2.2f, true);
+            PropLibrary.Scatter(PropLibrary.Kind.BigStump, root, prnd, 4, area, ForestHeight, forestFloor, 0.9f, 1.2f, true);
+            PropLibrary.Scatter(PropLibrary.Kind.Roots, root, prnd, 6, area, ForestHeight, forestFloor, 0.8f, 1.1f, false);
+            PropLibrary.Scatter(PropLibrary.Kind.Rock, root, prnd, 14, area, ForestHeight, forestFloor, 3f, 6f, true, null, 0.15f);
+            PropLibrary.CliffRing(root, prnd, 50f, 26, ForestHeight, 2.2f, 3.4f);
+
             // Ferns and stones along the stream banks
             PropLibrary.Scatter(PropLibrary.Kind.Fern, root, prnd, 50, area, ForestHeight, (x, z) => { float d = Mathf.Abs(z - StreamZ(x)); return d > 4.6f && d < 7f && Mathf.Abs(x) < 46f; }, 1.2f, 2f, false);
             PropLibrary.Scatter(PropLibrary.Kind.MossRock, root, prnd, 18, area, ForestHeight, (x, z) => { float d = Mathf.Abs(z - StreamZ(x)); return d > 3.5f && d < 5.5f && Mathf.Abs(x) < 46f; }, 0.5f, 1f, true);
@@ -212,7 +217,7 @@ namespace Neanderthal
             var L = new ArenaLayout { Name = "Фортеця в каньйоні", Center = Vector3.zero };
             Scenery.Lighting(root, new Color(1f, 0.88f, 0.72f), 1.35f, new Vector3(42f, 140f, 0f),
                 new Color(0.55f, 0.65f, 0.8f), new Color(0.6f, 0.45f, 0.35f), new Color(0.35f, 0.22f, 0.15f),
-                new Color(0.8f, 0.68f, 0.58f), 0.006f, new Color(1f, 0.92f, 0.84f));
+                new Color(0.8f, 0.68f, 0.58f), 0.006f, new Color(1f, 0.92f, 0.84f), "sky_canyon");
             var canyonLayers = new[] { TextureLibrary.Layer("red_sand", 6f), TextureLibrary.Layer("red_soil", 5f), TextureLibrary.Layer("red_rock", 9f) };
             if (TerrainBuilder.BuildTextured(root, 140f, 513, CanyonHeight, canyonLayers, (x, z, h, sl, w) =>
             {
@@ -255,6 +260,7 @@ namespace Neanderthal
                 var p = new Vector2(x, z);
                 return e > 25f && e < 47f && Vector2.Distance(p, CanyonCampN) > 9f && Vector2.Distance(p, CanyonCampS) > 9f;
             };
+            PropLibrary.CliffRing(root, crnd, 50f, 24, CanyonHeight, 2.5f, 3.8f, new Color(1.25f, 0.8f, 0.62f));
             Camp.Build(root, new Vector3(CanyonCampN.x, 0f, CanyonCampN.y), CanyonHeight, 7, true, 7f);
             Camp.Build(root, new Vector3(CanyonCampS.x, 0f, CanyonCampS.y), CanyonHeight, 8, false, 6.5f);
             PropLibrary.Scatter(PropLibrary.Kind.DesertBoulder, root, crnd, 26, new Rect(-47, -47, 94, 94), CanyonHeight, outside, 0.9f, 2.2f, true);

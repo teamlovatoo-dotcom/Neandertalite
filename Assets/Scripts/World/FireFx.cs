@@ -28,18 +28,18 @@ namespace Neanderthal
             }
         }
 
-        static Material ParticleMat(bool add)
+        static Material flameMat, emberMat, smokeMat;
+
+        static Material MakeMat(string name, Texture tex, bool add, Color tint)
         {
-            if (add && additive != null) return additive;
-            if (!add && alphaBlend != null) return alphaBlend;
             bool urp = UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline != null;
             Shader sh = urp ? Shader.Find("Universal Render Pipeline/Particles/Unlit") : null;
             if (sh == null) sh = Shader.Find(add ? "Legacy Shaders/Particles/Additive" : "Legacy Shaders/Particles/Alpha Blended");
             if (sh == null) sh = Shader.Find("Sprites/Default");
-            var m = new Material(sh) { name = add ? "FxAdditive" : "FxAlpha", mainTexture = Soft };
-            if (m.HasProperty("_BaseMap")) m.SetTexture("_BaseMap", Soft);
-            if (m.HasProperty("_BaseColor")) m.SetColor("_BaseColor", Color.white);
-            if (m.HasProperty("_TintColor")) m.SetColor("_TintColor", new Color(0.5f, 0.5f, 0.5f, 0.5f));
+            var m = new Material(sh) { name = name, mainTexture = tex };
+            if (m.HasProperty("_BaseMap")) m.SetTexture("_BaseMap", tex);
+            if (m.HasProperty("_BaseColor")) m.SetColor("_BaseColor", tint);
+            if (m.HasProperty("_TintColor")) m.SetColor("_TintColor", new Color(tint.r * 0.5f, tint.g * 0.5f, tint.b * 0.5f, 0.5f));
             if (m.HasProperty("_Surface")) m.SetFloat("_Surface", 1f);
             if (m.HasProperty("_Blend")) m.SetFloat("_Blend", add ? 2f : 0f);
             if (m.HasProperty("_SrcBlend")) m.SetInt("_SrcBlend", (int)(add ? UnityEngine.Rendering.BlendMode.One : UnityEngine.Rendering.BlendMode.SrcAlpha));
@@ -47,11 +47,50 @@ namespace Neanderthal
             if (m.HasProperty("_ZWrite")) m.SetInt("_ZWrite", 0);
             m.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
             m.renderQueue = 3000;
+            return m;
+        }
+
+        static Material ParticleMat(bool add)
+        {
+            if (add && additive != null) return additive;
+            if (!add && alphaBlend != null) return alphaBlend;
+            var m = MakeMat(add ? "FxAdditive" : "FxAlpha", Soft, add, Color.white);
             if (add) additive = m; else alphaBlend = m;
             return m;
         }
 
+        static Texture2D FireSheet => Resources.Load<Texture2D>("Textures/fx_fire");
+        static Texture2D SmokeSheet => Resources.Load<Texture2D>("Textures/fx_smoke");
+
+        /// <summary>Flipbook flame material (premultiplied, additive, HDR-bright core for bloom).</summary>
+        static Material FlameMat
+        {
+            get
+            {
+                if (flameMat != null) return flameMat;
+                var tex = FireSheet;
+                flameMat = tex != null ? MakeMat("FxFlame", tex, true, new Color(1.9f, 1.75f, 1.6f)) : ParticleMat(true);
+                return flameMat;
+            }
+        }
+
+        static Material EmberMat => emberMat != null ? emberMat : (emberMat = MakeMat("FxEmber", Soft, true, new Color(4f, 2.4f, 1.2f)));
+
+        static Material SmokeMat
+        {
+            get
+            {
+                if (smokeMat != null) return smokeMat;
+                var tex = SmokeSheet;
+                smokeMat = tex != null ? MakeMat("FxSmoke", tex, false, Color.white) : ParticleMat(false);
+                return smokeMat;
+            }
+        }
+
         static ParticleSystem System(Transform parent, Vector3 localPos, string name, bool add, bool local)
+            => System(parent, localPos, name, ParticleMat(add), local);
+
+        static ParticleSystem System(Transform parent, Vector3 localPos, string name, Material mat, bool local)
         {
             var go = new GameObject(name);
             go.transform.SetParent(parent, false);
@@ -65,11 +104,25 @@ namespace Neanderthal
             main.simulationSpace = local ? ParticleSystemSimulationSpace.Local : ParticleSystemSimulationSpace.World;
             main.scalingMode = ParticleSystemScalingMode.Hierarchy;
             var r = go.GetComponent<ParticleSystemRenderer>();
-            r.sharedMaterial = ParticleMat(add);
+            r.sharedMaterial = mat;
             r.renderMode = ParticleSystemRenderMode.Billboard;
             r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             r.receiveShadows = false;
             return ps;
+        }
+
+        static void Sheet(ParticleSystem ps, int x, int y, bool animate)
+        {
+            var tsa = ps.textureSheetAnimation;
+            tsa.enabled = true;
+            tsa.mode = ParticleSystemAnimationMode.Grid;
+            tsa.numTilesX = x;
+            tsa.numTilesY = y;
+            tsa.animation = ParticleSystemAnimationType.WholeSheet;
+            tsa.frameOverTime = animate
+                ? new ParticleSystem.MinMaxCurve(1f, AnimationCurve.Linear(0f, 0f, 1f, 1f))
+                : new ParticleSystem.MinMaxCurve(0f, 0.99f);
+            tsa.cycleCount = 1;
         }
 
         static Gradient Grad(params (float t, Color c)[] keys)
@@ -95,54 +148,95 @@ namespace Neanderthal
             root.localPosition = localPos;
             if (lightRange > 0f) Shapes.PointLight(root, Vector3.up * 0.5f * scale, Mat.Fire, lightRange, lightIntensity, lightShadows);
 
-            var flames = System(root, Vector3.zero, "Flames", true, localSpace);
+            bool sheet = FireSheet != null;
+            // Flipbook flame tongues: a few large, slowly rising billboards, each playing the whole loop.
+            var flames = System(root, Vector3.zero, "Flames", FlameMat, localSpace);
             var main = flames.main;
-            main.startLifetime = new ParticleSystem.MinMaxCurve(0.35f, 0.75f);
-            main.startSpeed = new ParticleSystem.MinMaxCurve(0.6f * scale, 1.5f * scale);
-            main.startSize = new ParticleSystem.MinMaxCurve(0.35f * scale, 0.7f * scale);
-            main.startRotation = new ParticleSystem.MinMaxCurve(0f, Mathf.PI * 2f);
-            main.startColor = new ParticleSystem.MinMaxGradient(new Color(1f, 0.75f, 0.3f), new Color(1f, 0.45f, 0.12f));
-            main.maxParticles = 120;
-            var em = flames.emission; em.rateOverTime = 45f;
-            var sh = flames.shape; sh.shapeType = ParticleSystemShapeType.Cone; sh.angle = 6f; sh.radius = 0.22f * scale;
+            main.startLifetime = new ParticleSystem.MinMaxCurve(0.65f, 1.05f);
+            main.startSpeed = new ParticleSystem.MinMaxCurve(0.05f * scale, 0.3f * scale);
+            main.startSize = sheet ? new ParticleSystem.MinMaxCurve(1.0f * scale, 1.45f * scale) : new ParticleSystem.MinMaxCurve(0.35f * scale, 0.7f * scale);
+            main.startRotation = sheet ? new ParticleSystem.MinMaxCurve(-0.18f, 0.18f) : new ParticleSystem.MinMaxCurve(0f, Mathf.PI * 2f);
+            main.startColor = Color.white;
+            main.maxParticles = 40;
+            var em = flames.emission; em.rateOverTime = sheet ? 11f : 45f;
+            var sh = flames.shape; sh.shapeType = ParticleSystemShapeType.Circle; sh.radius = 0.2f * scale;
             var col = flames.colorOverLifetime; col.enabled = true;
-            col.color = Grad((0f, new Color(1f, 0.95f, 0.6f, 0f)), (0.15f, new Color(1f, 0.8f, 0.35f, 0.9f)), (0.6f, new Color(1f, 0.35f, 0.08f, 0.6f)), (1f, new Color(0.4f, 0.05f, 0.02f, 0f)));
-            var sz = flames.sizeOverLifetime; sz.enabled = true;
-            sz.size = new ParticleSystem.MinMaxCurve(1f, new AnimationCurve(new Keyframe(0f, 0.6f), new Keyframe(0.3f, 1f), new Keyframe(1f, 0.15f)));
-            var noise = flames.noise; noise.enabled = true; noise.strength = 0.35f * scale; noise.frequency = 2f;
+            col.color = sheet
+                ? Grad((0f, new Color(0f, 0f, 0f, 1f)), (0.15f, new Color(1f, 1f, 1f, 1f)), (0.75f, new Color(0.9f, 0.85f, 0.8f, 1f)), (1f, new Color(0f, 0f, 0f, 1f)))
+                : Grad((0f, new Color(1f, 0.95f, 0.6f, 0f)), (0.15f, new Color(1f, 0.8f, 0.35f, 0.9f)), (0.6f, new Color(1f, 0.35f, 0.08f, 0.6f)), (1f, new Color(0.4f, 0.05f, 0.02f, 0f)));
+            if (sheet)
+            {
+                Sheet(flames, 8, 8, true);
+                var fr = flames.GetComponent<ParticleSystemRenderer>();
+                fr.pivot = new Vector3(0f, 0.38f, 0f);
+                fr.flip = new Vector3(0.5f, 0f, 0f);
+                fr.sortingFudge = -1f;
+            }
+            else
+            {
+                var sz = flames.sizeOverLifetime; sz.enabled = true;
+                sz.size = new ParticleSystem.MinMaxCurve(1f, new AnimationCurve(new Keyframe(0f, 0.6f), new Keyframe(0.3f, 1f), new Keyframe(1f, 0.15f)));
+            }
+            var noise = flames.noise; noise.enabled = true; noise.strength = 0.12f * scale; noise.frequency = 1.5f;
             flames.Play();
 
-            var embers = System(root, Vector3.up * 0.1f * scale, "Embers", true, localSpace);
+            // Warm glow pooled at the base.
+            var glow = System(root, Vector3.up * 0.1f * scale, "Glow", ParticleMat(true), localSpace);
+            var gm = glow.main;
+            gm.startLifetime = 0.5f;
+            gm.startSpeed = 0f;
+            gm.startSize = new ParticleSystem.MinMaxCurve(1.4f * scale, 1.9f * scale);
+            gm.startColor = new Color(1f, 0.45f, 0.12f, 0.22f);
+            gm.maxParticles = 8;
+            var ge = glow.emission; ge.rateOverTime = 10f;
+            var gs = glow.shape; gs.enabled = false;
+            var gc = glow.colorOverLifetime; gc.enabled = true;
+            gc.color = Grad((0f, new Color(1f, 1f, 1f, 0f)), (0.5f, new Color(1f, 1f, 1f, 1f)), (1f, new Color(1f, 1f, 1f, 0f)));
+            glow.Play();
+
+            // Sparks: hot, stretched streaks that drift up and cool down.
+            var embers = System(root, Vector3.up * 0.15f * scale, "Embers", EmberMat, localSpace);
             var em2 = embers.main;
-            em2.startLifetime = new ParticleSystem.MinMaxCurve(0.8f, 1.8f);
-            em2.startSpeed = new ParticleSystem.MinMaxCurve(1f * scale, 2.6f * scale);
-            em2.startSize = new ParticleSystem.MinMaxCurve(0.03f, 0.07f);
-            em2.startColor = new ParticleSystem.MinMaxGradient(new Color(1f, 0.6f, 0.2f), new Color(1f, 0.85f, 0.4f));
-            em2.maxParticles = 60;
-            var e2 = embers.emission; e2.rateOverTime = 10f * Mathf.Max(0.4f, scale);
-            var s2 = embers.shape; s2.shapeType = ParticleSystemShapeType.Cone; s2.angle = 18f; s2.radius = 0.2f * scale;
-            var n2 = embers.noise; n2.enabled = true; n2.strength = 0.9f; n2.frequency = 1.2f;
+            em2.startLifetime = new ParticleSystem.MinMaxCurve(0.9f, 2.2f);
+            em2.startSpeed = new ParticleSystem.MinMaxCurve(1.2f * scale, 3f * scale);
+            em2.startSize = new ParticleSystem.MinMaxCurve(0.018f, 0.04f);
+            em2.startColor = new ParticleSystem.MinMaxGradient(new Color(1f, 0.55f, 0.2f), new Color(1f, 0.8f, 0.45f));
+            em2.gravityModifier = -0.05f;
+            em2.maxParticles = 80;
+            var e2 = embers.emission; e2.rateOverTime = 12f * Mathf.Max(0.4f, scale);
+            e2.SetBursts(new[] { new ParticleSystem.Burst(0.5f, 3, 8, 0, 1.7f) });
+            var s2 = embers.shape; s2.shapeType = ParticleSystemShapeType.Cone; s2.angle = 20f; s2.radius = 0.22f * scale;
+            var n2 = embers.noise; n2.enabled = true; n2.strength = 1.1f; n2.frequency = 1.4f; n2.scrollSpeed = 0.6f;
             var c2 = embers.colorOverLifetime; c2.enabled = true;
-            c2.color = Grad((0f, new Color(1f, 0.8f, 0.4f, 1f)), (1f, new Color(1f, 0.3f, 0.1f, 0f)));
+            c2.color = Grad((0f, new Color(1f, 0.85f, 0.5f, 1f)), (0.6f, new Color(1f, 0.4f, 0.1f, 0.9f)), (1f, new Color(0.6f, 0.1f, 0.02f, 0f)));
+            var er = embers.GetComponent<ParticleSystemRenderer>();
+            er.renderMode = ParticleSystemRenderMode.Stretch;
+            er.velocityScale = 0.035f;
+            er.lengthScale = 1.2f;
             embers.Play();
 
             if (smoke)
             {
-                var sm = System(root, Vector3.up * 0.6f * scale, "Smoke", false, localSpace);
+                bool smokeSheet = SmokeSheet != null;
+                var sm = System(root, Vector3.up * 0.9f * scale, "Smoke", SmokeMat, localSpace);
                 var m3 = sm.main;
-                m3.startLifetime = new ParticleSystem.MinMaxCurve(3f, 5f);
-                m3.startSpeed = new ParticleSystem.MinMaxCurve(0.5f, 1.1f);
-                m3.startSize = new ParticleSystem.MinMaxCurve(0.6f * scale, 1.1f * scale);
+                m3.startLifetime = new ParticleSystem.MinMaxCurve(4f, 6.5f);
+                m3.startSpeed = new ParticleSystem.MinMaxCurve(0.5f, 1.0f);
+                m3.startSize = new ParticleSystem.MinMaxCurve(0.7f * scale, 1.2f * scale);
                 m3.startRotation = new ParticleSystem.MinMaxCurve(0f, Mathf.PI * 2f);
-                m3.startColor = new ParticleSystem.MinMaxGradient(new Color(0.3f, 0.29f, 0.28f, 0.35f));
-                m3.maxParticles = 40;
-                var e3 = sm.emission; e3.rateOverTime = 5f;
-                var s3 = sm.shape; s3.shapeType = ParticleSystemShapeType.Cone; s3.angle = 10f; s3.radius = 0.2f * scale;
+                m3.startColor = new ParticleSystem.MinMaxGradient(new Color(0.32f, 0.3f, 0.29f, 0.5f), new Color(0.45f, 0.43f, 0.41f, 0.4f));
+                m3.maxParticles = 50;
+                var e3 = sm.emission; e3.rateOverTime = 6f;
+                var s3 = sm.shape; s3.shapeType = ParticleSystemShapeType.Cone; s3.angle = 8f; s3.radius = 0.2f * scale;
                 var c3 = sm.colorOverLifetime; c3.enabled = true;
-                c3.color = Grad((0f, new Color(0.35f, 0.33f, 0.3f, 0f)), (0.2f, new Color(0.3f, 0.29f, 0.28f, 0.35f)), (1f, new Color(0.5f, 0.5f, 0.5f, 0f)));
+                c3.color = Grad((0f, new Color(1f, 1f, 1f, 0f)), (0.15f, new Color(1f, 1f, 1f, 0.7f)), (0.6f, new Color(1f, 1f, 1f, 0.35f)), (1f, new Color(1f, 1f, 1f, 0f)));
                 var z3 = sm.sizeOverLifetime; z3.enabled = true;
-                z3.size = new ParticleSystem.MinMaxCurve(1f, new AnimationCurve(new Keyframe(0f, 0.5f), new Keyframe(1f, 3f)));
-                var n3 = sm.noise; n3.enabled = true; n3.strength = 0.5f; n3.frequency = 0.5f;
+                z3.size = new ParticleSystem.MinMaxCurve(1f, new AnimationCurve(new Keyframe(0f, 0.5f), new Keyframe(1f, 3.5f)));
+                var r3 = sm.rotationOverLifetime; r3.enabled = true; r3.z = new ParticleSystem.MinMaxCurve(-0.4f, 0.4f);
+                var n3 = sm.noise; n3.enabled = true; n3.strength = 0.4f; n3.frequency = 0.35f;
+                var v3 = sm.velocityOverLifetime; v3.enabled = true; v3.space = ParticleSystemSimulationSpace.World;
+                v3.x = new ParticleSystem.MinMaxCurve(0.25f, 0.45f); v3.y = new ParticleSystem.MinMaxCurve(0f, 0f); v3.z = new ParticleSystem.MinMaxCurve(0.05f, 0.15f);
+                if (smokeSheet) Sheet(sm, 2, 2, false);
                 sm.Play();
             }
             new GameObject("Flicker").transform.SetParent(root, false);

@@ -18,3 +18,12 @@ Props (models + textures, CC0, Poly Haven — https://polyhaven.com, decimated f
   fern_02, shrub_04, rock_moss_set_02, dry_branches_medium_01, stone_fire_pit,
   tree_stump_01, dead_tree_trunk, namaqualand_boulder_02
 Leaf atlas built from tree_small_02 (CC0, Poly Haven); fir twig from fir_tree_01 (CC0, Poly Haven).
+
+More CC0 assets from Poly Haven (https://polyhaven.com):
+  Textures: brown_leather, leather_white (base of "hide"), fine_grained_wood, rough_wood, pine_bark,
+            dark_rock (base of "flint" and obsidian), thatch_roof_angled, forest_leaves_02,
+            burned_ground_01, dirt_floor
+  Models:   rock_face_01, rock_face_02 (cliffs), tree_stump_02, root_cluster_01, rock_07
+  Skies:    kloofendal_48d_partly_cloudy_puresky, kloofendal_43d_clear_puresky, sunflowers_puresky (Resources/Sky)
+Generated in-house: bone, hide, feather, flint textures; fx_fire flipbook and fx_smoke (Tools/textures);
+weapon and camp models (Tools/blender/make_weapons.py, make_structures.py).

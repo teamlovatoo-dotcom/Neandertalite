@@ -88,7 +88,7 @@ namespace Neanderthal
 
             Scenery.Lighting(root, new Color(1f, 0.93f, 0.8f), 1.15f, new Vector3(38f, -35f, 0f),
                 new Color(0.55f, 0.62f, 0.72f), new Color(0.42f, 0.42f, 0.4f), new Color(0.2f, 0.18f, 0.15f),
-                new Color(0.62f, 0.66f, 0.7f), 0.0045f);
+                new Color(0.62f, 0.66f, 0.7f), 0.0045f, null, "sky_valley");
 
             var layers = new[] { TextureLibrary.Layer("grass", 6f), TextureLibrary.Layer("forest_ground", 6f), TextureLibrary.Layer("river_sand", 4f), TextureLibrary.Layer("rock_face", 10f) };
             if (TerrainBuilder.BuildTextured(root, Size, 513, Height, layers, (x, z, h, sl, w) =>
@@ -350,6 +350,32 @@ namespace Neanderthal
                 float s = 4f + (float)rnd.NextDouble() * 6f;
                 Scenery.Rock(root, new Vector3(p.x, Height(p.x, p.z), p.z), new Vector3(s, s * 0.8f, s), (float)rnd.NextDouble() * 360f, false, false, rnd.Next(4));
             }
+            // Photo-scanned cliff faces along the western and northern walls.
+            if (PropLibrary.Has(PropLibrary.Kind.CliffA))
+            {
+                var crnd = new System.Random(seedProps + 7);
+                var cliffs = Shapes.Pivot(root, Vector3.zero, "Cliffs");
+                for (int i = 0; i < 18; i++)
+                {
+                    float z = -125f + i * 13.5f + (float)crnd.NextDouble() * 6f;
+                    if (z > -42f && z < 50f) continue;
+                    float x = -87f - (float)crnd.NextDouble() * 5f, s = 2.4f + (float)crnd.NextDouble() * 1.4f;
+                    PropLibrary.Spawn(crnd.NextDouble() < 0.5 ? PropLibrary.Kind.CliffA : PropLibrary.Kind.CliffB, cliffs,
+                        new Vector3(x, Height(x, z) - 1.3f * s, z), 90f + ((float)crnd.NextDouble() - 0.5f) * 60f, s, 0, true);
+                }
+                for (int i = 0; i < 16; i++)
+                {
+                    float x = -125f + i * 16f + (float)crnd.NextDouble() * 6f;
+                    if (Mathf.Abs(x) < 24f) continue;
+                    float z = 105f + (float)crnd.NextDouble() * 5f, s = 2.4f + (float)crnd.NextDouble() * 1.4f;
+                    PropLibrary.Spawn(crnd.NextDouble() < 0.5 ? PropLibrary.Kind.CliffA : PropLibrary.Kind.CliffB, cliffs,
+                        new Vector3(x, Height(x, z) - 1.3f * s, z), 180f + ((float)crnd.NextDouble() - 0.5f) * 60f, s, 0, true);
+                }
+            }
+            PropLibrary.Scatter(PropLibrary.Kind.BigStump, root, prnd, 10, parea, Height, okTree, 0.9f, 1.3f, true);
+            PropLibrary.Scatter(PropLibrary.Kind.Roots, root, prnd, 14, parea, Height, okTree, 0.8f, 1.2f, false);
+            PropLibrary.Scatter(PropLibrary.Kind.Rock, root, prnd, 40, parea, Height, okSmall, 3f, 7f, true, null, 0.15f);
+
             foreach (var p in Scenery.Scatter(rnd, 45, new Rect(-130, -130, 260, 240), okTree))
                 Scenery.Bush(root, new Vector3(p.x, Height(p.x, p.z), p.z), 0.8f + (float)rnd.NextDouble() * 0.6f, rnd.NextDouble() < 0.3);
             foreach (var p in Scenery.Scatter(rnd, 30, new Rect(-130, -130, 260, 240), okSmall))
