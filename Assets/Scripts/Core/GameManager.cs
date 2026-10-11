@@ -80,6 +80,7 @@ namespace Neanderthal
             menuCamera.fieldOfView = 55f;
             menuCamera.farClipPlane = 900f;
             camGo.AddComponent<AudioListener>();
+            Neanderthal.Rendering.PostFx.SetupCamera(menuCamera);
             UIManager.Instance.Show(UIScreen.MainMenu);
         }
 

@@ -46,7 +46,7 @@ namespace Neanderthal
             {
                 if (litShader == null)
                 {
-                    litShader = Shader.Find("Universal Render Pipeline/Lit");
+                    if (UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline != null) litShader = Shader.Find("Universal Render Pipeline/Lit");
                     if (litShader == null) litShader = Shader.Find("Standard");
                     if (litShader == null) litShader = Shader.Find("Legacy Shaders/Diffuse");
                 }
@@ -60,7 +60,7 @@ namespace Neanderthal
             {
                 if (unlitShader == null)
                 {
-                    unlitShader = Shader.Find("Universal Render Pipeline/Unlit");
+                    if (UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline != null) unlitShader = Shader.Find("Universal Render Pipeline/Unlit");
                     if (unlitShader == null) unlitShader = Shader.Find("Unlit/Color");
                     if (unlitShader == null) unlitShader = Shader.Find("Sprites/Default");
                 }

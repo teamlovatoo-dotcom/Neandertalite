@@ -53,7 +53,7 @@ namespace Neanderthal
             var L = new ArenaLayout { Name = "Печерний ліс", Center = new Vector3(0, 0, 0) };
             Scenery.Lighting(root, new Color(1f, 0.9f, 0.75f), 1.1f, new Vector3(32f, -60f, 0f),
                 new Color(0.5f, 0.58f, 0.66f), new Color(0.38f, 0.4f, 0.35f), new Color(0.18f, 0.16f, 0.12f),
-                new Color(0.55f, 0.6f, 0.58f), 0.012f);
+                new Color(0.55f, 0.6f, 0.58f), 0.012f, new Color(0.95f, 1f, 0.94f));
             TerrainBuilder.Build(root, 130f, 130, ForestHeight, (x, z, h, s) =>
             {
                 float path = Smooth(3f, 1f, Mathf.Abs(new Vector2(x, z).magnitude - 30f));
@@ -150,7 +150,7 @@ namespace Neanderthal
             var L = new ArenaLayout { Name = "Фортеця в каньйоні", Center = Vector3.zero };
             Scenery.Lighting(root, new Color(1f, 0.88f, 0.72f), 1.35f, new Vector3(42f, 140f, 0f),
                 new Color(0.55f, 0.65f, 0.8f), new Color(0.6f, 0.45f, 0.35f), new Color(0.35f, 0.22f, 0.15f),
-                new Color(0.8f, 0.68f, 0.58f), 0.006f);
+                new Color(0.8f, 0.68f, 0.58f), 0.006f, new Color(1f, 0.92f, 0.84f));
             TerrainBuilder.Build(root, 140f, 120, CanyonHeight, (x, z, h, s) =>
             {
                 float n = Mat.Fbm(x * 0.08f, z * 0.08f, 3);

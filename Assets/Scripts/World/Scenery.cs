@@ -9,7 +9,7 @@ namespace Neanderthal
         static Mesh[] rockMeshes;
         static Material rockMat, rockRedMat, barkMat, concreteMat;
 
-        public static void Lighting(Transform parent, Color sun, float sunIntensity, Vector3 sunEuler, Color sky, Color equator, Color ground, Color fog, float fogDensity)
+        public static void Lighting(Transform parent, Color sun, float sunIntensity, Vector3 sunEuler, Color sky, Color equator, Color ground, Color fog, float fogDensity, Color? grade = null)
         {
             var go = new GameObject("Sun");
             go.transform.SetParent(parent, false);
@@ -43,6 +43,7 @@ namespace Neanderthal
                 RenderSettings.skybox = skyMat;
             }
             DynamicGI.UpdateEnvironment();
+            Neanderthal.Rendering.PostFx.CreateVolume(parent, grade ?? new Color(1f, 0.97f, 0.92f));
         }
 
         static void EnsureMats()

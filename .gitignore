@@ -44,3 +44,4 @@ crashlytics-build.properties
 /Packages/packages-lock.json
 /My project/
 .vsconfig
+/Assets/Settings/

@@ -92,6 +92,7 @@ namespace Neanderthal
             Cam.farClipPlane = 900f;
             Cam.fieldOfView = Profile.Current.Fov;
             camGo.AddComponent<AudioListener>();
+            Neanderthal.Rendering.PostFx.SetupCamera(Cam);
 
             Weapons = gameObject.AddComponent<WeaponHolder>();
             Weapons.Init(this);
