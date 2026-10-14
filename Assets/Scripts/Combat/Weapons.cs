@@ -68,7 +68,7 @@ namespace Neanderthal
             OnModelBuilt(bs);
             bool hands = ViewHands.Attach(Data.Id, Model, bs);
             if (hands && Data.Id == "fists")
-                foreach (Transform c in Model) if (c.name != "HandL" && c.name != "HandR") c.gameObject.SetActive(false);
+                foreach (Transform c in Model) if (c.name != "HandL" && c.name != "HandR" && c.name != "GripL" && c.name != "GripR") c.gameObject.SetActive(false);
             Shapes.SetShadows(Model.gameObject, false);
             // A rough hand on the grip so it reads as "held" when there is no hand model.
             if (!hands && Data.Id != "fists")
@@ -292,7 +292,7 @@ namespace Neanderthal
         public override float ZoomDegrees => throwCharge * 6f;
         public override float SpreadDegrees => raising ? 0.4f + MovementSpread(0.6f) : 0f;
         public override bool IsMelee => !raising;
-        public override Vector3 HipPosition => new Vector3(0.22f, -0.22f, 0.1f);
+        public override Vector3 HipPosition => new Vector3(0.2f, -0.2f, 0.2f);
 
         public override bool GetLaunch(out Vector3 pos, out Vector3 vel, out float gravity)
         {
@@ -631,7 +631,7 @@ namespace Neanderthal
             // The stone disappears from the hand when thrown (the hand stays).
             bool show = have > 0 && Cooldown <= Data.Cooldown * 0.4f;
             if (Model != null)
-                foreach (Transform c in Model) if (c.name != "HandR") c.gameObject.SetActive(show);
+                foreach (Transform c in Model) if (c.name != "HandR" && c.name != "GripR") c.gameObject.SetActive(show);
 
             if (!winding && inputOk && Cooldown <= 0f && GameInput.FireHeld && have > 0)
             {

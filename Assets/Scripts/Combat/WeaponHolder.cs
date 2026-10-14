@@ -42,6 +42,8 @@ namespace Neanderthal
             shrink.localScale = Vector3.one * ViewScale;
             ViewRoot = new GameObject("ViewModel").transform;
             ViewRoot.SetParent(shrink, false);
+            // The player's own rigged arms reach for the weapon's grips (falls back to the old hand meshes if missing).
+            FirstPersonArms.Create(shrink, this);
             player.Inventory.WeaponAdded += OnWeaponAdded;
         }
 
