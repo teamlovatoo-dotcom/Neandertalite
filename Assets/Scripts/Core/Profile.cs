@@ -20,6 +20,9 @@ namespace Neanderthal
         public int DuelWins;
         public int DuelLosses;
         public bool ChapterOneComplete;
+        public List<ServerRecord> ServerHistory = new List<ServerRecord>();
+
+        const int MaxServerHistory = 20;
 
         static Profile current;
         static string PathOnDisk => System.IO.Path.Combine(Application.persistentDataPath, "neanderthal_profile.json");
@@ -98,5 +101,38 @@ namespace Neanderthal
             current = new Profile();
             current.Save();
         }
+
+        /// <summary>Puts the server at the top of the history (replacing an entry with the same name).</summary>
+        public void RememberServer(ServerRecord server)
+        {
+            server.LastPlayed = DateTime.Now.ToString("dd.MM.yyyy HH:mm");
+            if (string.IsNullOrEmpty(server.Created)) server.Created = server.LastPlayed;
+            ServerHistory.RemoveAll(s => s.Name == server.Name);
+            ServerHistory.Insert(0, server);
+            if (ServerHistory.Count > MaxServerHistory) ServerHistory.RemoveRange(MaxServerHistory, ServerHistory.Count - MaxServerHistory);
+            Save();
+        }
+
+        public void ForgetServer(ServerRecord server)
+        {
+            ServerHistory.Remove(server);
+            Save();
+        }
+    }
+
+    /// <summary>A server the player created, kept in the profile for "Історія серверів".</summary>
+    [Serializable]
+    public class ServerRecord
+    {
+        public string Name = "Печера неандертальців";
+        public int Map = (int)ArenaMap.Catacombs;
+        public int Opponents = 1;
+        public int MaxPlayers = 2;
+        public int ScoreToWin = 5;
+        public int Port = 27015;
+        public string Created;
+        public string LastPlayed;
+
+        public ServerRecord Copy() => (ServerRecord)MemberwiseClone();
     }
 }

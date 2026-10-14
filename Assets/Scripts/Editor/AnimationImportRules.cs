@@ -29,11 +29,14 @@ namespace Neanderthal.EditorTools
             if (!IsAnimation(assetPath)) return;
             var mi = (ModelImporter)assetImporter;
             var clips = mi.clipAnimations.Length > 0 ? mi.clipAnimations : mi.defaultClipAnimations;
+            string file = System.IO.Path.GetFileNameWithoutExtension(assetPath);
             foreach (var c in clips)
             {
+                // Mixamo names every take "mixamo.com": the file name says what the clip is (Walk, Attack_Axe...).
+                if (clips.Length == 1 || c.name == "mixamo.com") c.name = file;
                 string n = c.name.ToLowerInvariant();
                 bool loop = n.Contains("loop") || n.Contains("idle") || n.Contains("walk") || n.Contains("run")
-                            || n.Contains("jog") || n.Contains("sprint");
+                            || n.Contains("jog") || n.Contains("sprint") || n.Contains("swim");
                 bool once = n.Contains("death") || n.Contains("hit") || n.Contains("attack") || n.Contains("start") || n.Contains("land");
                 c.loopTime = loop && !once;
                 // Turning and bobbing stay in the pose; forward travel becomes root motion, which the game discards

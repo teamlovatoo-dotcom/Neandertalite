@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace Neanderthal
 {
-    public enum UIScreen { MainMenu, Settings, DuelSetup, MenuShop, Hud, Shop, Crafting, Pause, Result, Inventory }
+    public enum UIScreen { MainMenu, Settings, DuelSetup, MenuShop, Hud, Shop, Crafting, Pause, Result, Inventory, CreateServer, ServerHistory }
 
     /// <summary>Owns which screen is visible, cursor locking and pausing. All drawing is IMGUI.</summary>
     public class UIManager : MonoBehaviour
@@ -74,7 +74,8 @@ namespace Neanderthal
                 else if (Screen == UIScreen.Pause && GameInput.PauseDown) Show(UIScreen.Hud);
                 else if (Screen == UIScreen.Settings && GameInput.PauseDown) Show(settingsReturn);
             }
-            else if ((Screen == UIScreen.Settings || Screen == UIScreen.DuelSetup || Screen == UIScreen.MenuShop) && GameInput.PauseDown)
+            else if ((Screen == UIScreen.Settings || Screen == UIScreen.DuelSetup || Screen == UIScreen.MenuShop
+                      || Screen == UIScreen.CreateServer || Screen == UIScreen.ServerHistory) && GameInput.PauseDown)
             {
                 Show(UIScreen.MainMenu);
             }
@@ -104,6 +105,8 @@ namespace Neanderthal
                 case UIScreen.MainMenu: Menus.DrawMainMenu(); break;
                 case UIScreen.Settings: Menus.DrawSettings(() => Show(settingsReturn)); break;
                 case UIScreen.DuelSetup: Menus.DrawDuelSetup(); break;
+                case UIScreen.CreateServer: Menus.DrawCreateServer(); break;
+                case UIScreen.ServerHistory: Menus.DrawServerHistory(); break;
                 case UIScreen.MenuShop: ShopScreen.Draw(true, () => Show(UIScreen.MainMenu)); break;
                 case UIScreen.Shop: ShopScreen.Draw(false, () => Show(UIScreen.Hud)); break;
                 case UIScreen.Crafting: CraftingScreen.Draw(workbench, () => Show(UIScreen.Hud)); break;

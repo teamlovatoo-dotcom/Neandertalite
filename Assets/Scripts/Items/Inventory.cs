@@ -62,6 +62,7 @@ namespace Neanderthal
 
         public void AddWeapon(string id, bool announce = true)
         {
+            id = ItemDatabase.Resolve(id);
             var data = ItemDatabase.Weapon(id);
             if (data == null) return;
             if (Weapons.Contains(id))

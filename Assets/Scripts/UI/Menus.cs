@@ -10,7 +10,7 @@ namespace Neanderthal
         public ArenaMap Map = ArenaMap.Catacombs;
         public int Opponents = 1;  // 1 = duel, more = free-for-all deathmatch
         public string Primary = "bow";
-        public string Secondary = "spear";
+        public string Secondary = "axe";
         public string Melee = "knife";
         public int Difficulty = 1; // 0 easy, 1 normal, 2 hard
         public int ScoreToWin = 5;
@@ -20,13 +20,10 @@ namespace Neanderthal
     public static class Menus
     {
         public static readonly ArenaSettings Duel = new ArenaSettings();
-        static readonly string[] Primaries = ItemDatabase.ModernWeapons
-            ? new[] { "bow", "slingshot", "compound_bow", "crossbow", "shotgun", "rifle", "sniper" }
-            : new[] { "bow", "slingshot" };
-        static readonly string[] Secondaries = ItemDatabase.ModernWeapons
-            ? new[] { "spear", "obsidian_spear", "stone", "pistol" }
-            : new[] { "spear", "obsidian_spear", "stone" };
-        static readonly string[] Melees = { "knife", "obsidian_knife", "stick", "club", "axe", "obsidian_axe", "bone_dagger", "torch" };
+        // Only the author's weapons are in the game (ItemDatabase.Available).
+        static readonly string[] Primaries = { "bow" };
+        static readonly string[] Secondaries = { "axe", "knife" };
+        static readonly string[] Melees = { "knife", "axe" };
         static bool confirmReset;
 
         static readonly float[] hover = new float[8];
@@ -44,16 +41,24 @@ namespace Neanderthal
             var sub = UIStyle.Label(24, new Color(0.82f, 0.83f, 0.84f), TextAnchor.MiddleCenter, UIStyle.FontRegular);
             GUI.Label(new Rect(96 + 150 * 0.54f, 262, logoW, 36), UIStyle.Spaced("Дуелі   //   Мультиплеєр"), sub);
 
-            float x = 104, y = 380;
-            if (MenuItem(new Rect(x, y, 520, 66), 0, "Грати", "дуель 1 на 1  ·  усі проти всіх", true)) UIManager.Instance.Show(UIScreen.DuelSetup);
-            y += 74;
-            if (MenuItem(new Rect(x, y, 520, 66), 1, "Тренування", "долина, крафт, полювання")) GameManager.Instance.StartSurvival();
-            y += 74;
-            if (MenuItem(new Rect(x, y, 520, 66), 2, "Магазин", ItemDatabase.ModernWeapons ? "креслення сучасної зброї" : "зброя кам'яної доби")) UIManager.Instance.Show(UIScreen.MenuShop);
-            y += 74;
-            if (MenuItem(new Rect(x, y, 520, 66), 3, "Налаштування", null)) UIManager.Instance.OpenSettings(UIScreen.MainMenu);
-            y += 74;
-            if (MenuItem(new Rect(x, y, 520, 66), 4, "Вихід", null)) GameManager.Instance.Quit();
+            float x = 104, y = 336;
+            const float step = 70;
+            if (MenuItem(new Rect(x, y, 520, 62), 0, "Нова гра", "дуель 1 на 1  ·  усі проти всіх", true)) UIManager.Instance.Show(UIScreen.DuelSetup);
+            y += step;
+            if (MenuItem(new Rect(x, y, 520, 62), 1, "Створити сервер", "назва, карта, режим, гравці"))
+            {
+                ServerDraft = new ServerRecord();
+                UIManager.Instance.Show(UIScreen.CreateServer);
+            }
+            y += step;
+            int servers = Profile.Current.ServerHistory.Count;
+            if (MenuItem(new Rect(x, y, 520, 62), 2, "Історія серверів", servers > 0 ? $"збережено: {servers}" : "поки порожньо")) UIManager.Instance.Show(UIScreen.ServerHistory);
+            y += step;
+            if (MenuItem(new Rect(x, y, 520, 62), 3, "Магазин", ItemDatabase.ModernWeapons ? "креслення сучасної зброї" : "зброя кам'яної доби")) UIManager.Instance.Show(UIScreen.MenuShop);
+            y += step;
+            if (MenuItem(new Rect(x, y, 520, 62), 4, "Опції", null)) UIManager.Instance.OpenSettings(UIScreen.MainMenu);
+            y += step;
+            if (MenuItem(new Rect(x, y, 520, 62), 5, "Вихід", null)) GameManager.Instance.Quit();
 
             // Stacked tagline, as on the concept boards.
             var tag = UIStyle.Label(20, new Color(0.85f, 0.86f, 0.86f, 0.8f), TextAnchor.MiddleLeft, UIStyle.FontLight);
@@ -233,6 +238,137 @@ namespace Neanderthal
 
             if (UIStyle.Button(new Rect(panel.xMax - 420, panel.yMax - 80, 180, 50), "НАЗАД", false, true, 18)) UIManager.Instance.Show(UIScreen.MainMenu);
             if (UIStyle.Button(new Rect(panel.xMax - 220, panel.yMax - 80, 180, 50), "У БІЙ", true, true, 20)) GameManager.Instance.StartArena(Duel);
+        }
+
+        // ------------------------------------------------------------------ servers
+        static ServerRecord ServerDraft = new ServerRecord();
+        static readonly string[] MapNames = { "ПЕЧЕРНИЙ ЛІС", "ФОРТЕЦЯ В КАНЬЙОНІ", "ПІДЗЕМЕЛЛЯ" };   // indexed by ArenaMap
+        static Vector2 historyScroll;
+
+        static string ModeName(int opponents) => opponents == 1 ? "дуель 1 на 1" : $"усі проти всіх · {opponents + 1}";
+
+        /// <summary>Starts a match from a server entry. Networking is not in yet, so the match runs locally with bots.</summary>
+        static void LaunchServer(ServerRecord server)
+        {
+            Profile.Current.RememberServer(server);
+            var settings = new ArenaSettings
+            {
+                Map = (ArenaMap)server.Map,
+                Opponents = server.Opponents,
+                ScoreToWin = server.ScoreToWin,
+                Primary = Duel.Primary,
+                Secondary = Duel.Secondary,
+                Melee = Duel.Melee,
+                Difficulty = Duel.Difficulty,
+            };
+            GameManager.Instance.StartArena(settings);
+        }
+
+        public static void DrawCreateServer()
+        {
+            float W = UIStyle.Width, H = UIStyle.Height;
+            var s = ServerDraft;
+            UIStyle.Rect(new Rect(0, 0, W, H), new Color(0, 0, 0, 0.6f));
+            Rect panel = new Rect(W * 0.5f - 600, H * 0.5f - 380, 1200, 760);
+            UIStyle.PanelBox(panel);
+            UIStyle.Text(new Rect(panel.x + 40, panel.y + 26, 600, 40), UIStyle.Spaced("Створити сервер"), 30, Color.white, TextAnchor.MiddleLeft, true);
+            UIStyle.Text(new Rect(panel.x + 40, panel.y + 66, 900, 24), UIStyle.Spaced(ModeName(s.Opponents) + $"   ·   до {s.ScoreToWin} вбивств"), 15, UIStyle.TextDim);
+
+            float x = panel.x + 40, y = panel.y + 120;
+            UIStyle.Text(new Rect(x, y, 300, 24), UIStyle.Spaced("Назва сервера"), 14, UIStyle.TextDim);
+            y += 30;
+            Rect field = new Rect(x, y, 700, 50);
+            UIStyle.Rect(field, new Color(1f, 1f, 1f, 0.06f));
+            UIStyle.Outline(field, UIStyle.Line);
+            var fieldStyle = UIStyle.Label(20, Color.white, TextAnchor.MiddleLeft, UIStyle.FontRegular);
+            fieldStyle.padding = new RectOffset(16, 16, 0, 0);
+            GUI.skin.settings.cursorColor = Color.white;
+            s.Name = GUI.TextField(field, s.Name ?? "", 32, fieldStyle);
+
+            y += 80;
+            UIStyle.Text(new Rect(x, y, 300, 24), UIStyle.Spaced("Карта"), 14, UIStyle.TextDim);
+            y += 30;
+            ArenaMap[] maps = { ArenaMap.Catacombs, ArenaMap.CaveForest, ArenaMap.CanyonFortress };
+            for (int i = 0; i < maps.Length; i++)
+                if (UIStyle.Button(new Rect(x + i * 370, y, 360, 60), MapNames[(int)maps[i]], s.Map == (int)maps[i], true, 18)) s.Map = (int)maps[i];
+
+            y += 90;
+            UIStyle.Text(new Rect(x, y, 300, 24), UIStyle.Spaced("Режим"), 14, UIStyle.TextDim);
+            UIStyle.Text(new Rect(x + 560, y, 300, 24), UIStyle.Spaced("До перемоги"), 14, UIStyle.TextDim);
+            y += 30;
+            int[] counts = { 1, 3, 5, 9 };
+            string[] countLabels = { "ДУЕЛЬ 1×1", "ВСІ — 4", "ВСІ — 6", "ВСІ — 10" };
+            for (int i = 0; i < counts.Length; i++)
+                if (UIStyle.Button(new Rect(x + i * 132, y, 124, 44), countLabels[i], s.Opponents == counts[i], true, 15))
+                {
+                    s.Opponents = counts[i];
+                    s.MaxPlayers = counts[i] + 1;
+                }
+            int[] scores = { 5, 10, 20 };
+            for (int i = 0; i < scores.Length; i++)
+                if (UIStyle.Button(new Rect(x + 560 + i * 132, y, 124, 44), $"{scores[i]} ВБИВСТВ", s.ScoreToWin == scores[i], true, 15)) s.ScoreToWin = scores[i];
+
+            y += 80;
+            GUI.Label(new Rect(x, y, panel.width - 80, 80),
+                $"Гравців: до {s.MaxPlayers}   ·   порт {s.Port}\n" +
+                "Мережева гра ще в розробці: поки сервер запускається на цьому комп'ютері, вільні місця займають боти.\n" +
+                "Сервер зберігається в «Історії серверів», звідти його можна запустити знову.",
+                UIStyle.Wrap(14, UIStyle.TextDim));
+
+            bool nameOk = !string.IsNullOrWhiteSpace(s.Name);
+            if (UIStyle.Button(new Rect(panel.xMax - 420, panel.yMax - 80, 180, 50), "НАЗАД", false, true, 18)) UIManager.Instance.Show(UIScreen.MainMenu);
+            if (UIStyle.Button(new Rect(panel.xMax - 220, panel.yMax - 80, 180, 50), "СТВОРИТИ", true, nameOk, 20))
+            {
+                s.Name = s.Name.Trim();
+                LaunchServer(s.Copy());
+            }
+        }
+
+        public static void DrawServerHistory()
+        {
+            float W = UIStyle.Width, H = UIStyle.Height;
+            var history = Profile.Current.ServerHistory;
+            UIStyle.Rect(new Rect(0, 0, W, H), new Color(0, 0, 0, 0.6f));
+            Rect panel = new Rect(W * 0.5f - 600, H * 0.5f - 400, 1200, 800);
+            UIStyle.PanelBox(panel);
+            UIStyle.Text(new Rect(panel.x + 40, panel.y + 26, 600, 40), UIStyle.Spaced("Історія серверів"), 30, Color.white, TextAnchor.MiddleLeft, true);
+            UIStyle.Text(new Rect(panel.x + 40, panel.y + 66, 900, 24), UIStyle.Spaced("сервери, які ти створював"), 15, UIStyle.TextDim);
+
+            Rect list = new Rect(panel.x + 40, panel.y + 120, panel.width - 80, panel.height - 230);
+            if (history.Count == 0)
+            {
+                UIStyle.Text(new Rect(list.x, list.y + 40, list.width, 40), "Тут поки порожньо. Створи сервер у головному меню.", 20, UIStyle.TextDim, TextAnchor.MiddleCenter);
+            }
+            else
+            {
+                const float rowH = 84;
+                Rect content = new Rect(0, 0, list.width - 20, history.Count * rowH);
+                historyScroll = GUI.BeginScrollView(list, historyScroll, content);
+                ServerRecord launch = null, forget = null;
+                for (int i = 0; i < history.Count; i++)
+                {
+                    var srv = history[i];
+                    Rect row = new Rect(0, i * rowH, content.width, rowH - 10);
+                    UIStyle.Rect(row, new Color(1f, 1f, 1f, 0.04f));
+                    UIStyle.Outline(row, UIStyle.Line);
+                    UIStyle.Text(new Rect(row.x + 20, row.y + 8, 600, 34), srv.Name, 22, Color.white, TextAnchor.MiddleLeft, true);
+                    string map = srv.Map >= 0 && srv.Map < MapNames.Length ? MapNames[srv.Map] : "?";
+                    UIStyle.Text(new Rect(row.x + 20, row.y + 42, 760, 24),
+                        $"{map.ToLowerInvariant()}   ·   {ModeName(srv.Opponents)}   ·   до {srv.ScoreToWin} вбивств   ·   востаннє {srv.LastPlayed}", 14, UIStyle.TextDim, TextAnchor.MiddleLeft);
+                    if (UIStyle.Button(new Rect(row.xMax - 330, row.y + 14, 170, 46), "ЗАПУСТИТИ", true, true, 16)) launch = srv;
+                    if (UIStyle.Button(new Rect(row.xMax - 150, row.y + 14, 130, 46), "ВИДАЛИТИ", false, true, 14)) forget = srv;
+                }
+                GUI.EndScrollView();
+                if (forget != null) Profile.Current.ForgetServer(forget);
+                if (launch != null) LaunchServer(launch.Copy());
+            }
+
+            if (UIStyle.Button(new Rect(panel.xMax - 420, panel.yMax - 80, 180, 50), "НАЗАД", false, true, 18)) UIManager.Instance.Show(UIScreen.MainMenu);
+            if (UIStyle.Button(new Rect(panel.xMax - 220, panel.yMax - 80, 180, 50), "НОВИЙ", false, true, 18))
+            {
+                ServerDraft = new ServerRecord();
+                UIManager.Instance.Show(UIScreen.CreateServer);
+            }
         }
 
         static string Choice(ref float y, float x, string title, string[] options, string current)

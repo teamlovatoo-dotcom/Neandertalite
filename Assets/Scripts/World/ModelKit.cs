@@ -105,7 +105,10 @@ namespace Neanderthal
                 case "pebble": m = Mat.Pbr("boulder", Mat.Stone, 0.25f, null, new Color(0.72f, 0.7f, 0.66f)); break;
                 case "rock": m = Scenery.RockMat; break;
                 case "thatch": m = Mat.Pbr("thatch", Mat.Wood, 0.05f, null, new Color(1.35f, 1.12f, 0.78f)); break;
-                default: m = Mat.Get(Mat.Wood); break;
+                default:
+                    // Imported models (import_weapon.py) bring their own baked texture: Textures/<material>_diff.
+                    m = TextureLibrary.Has(key) ? Mat.Pbr(key, Mat.Wood, 0.25f) : Mat.Get(Mat.Wood);
+                    break;
             }
             mats[key] = m;
             return m;

@@ -79,6 +79,24 @@ namespace Neanderthal
         /// </summary>
         public static readonly bool ModernWeapons = false;
 
+        /// <summary>
+        /// The weapons the game ships with: fists plus the author's own models (Tools/blender/import_weapon.py).
+        /// The other definitions stay so old saves, maps, recipes and bots keep working; Resolve maps them onto these.
+        /// </summary>
+        public static readonly string[] Available = { "fists", "knife", "axe", "bow" };
+        public static bool IsAvailable(string id) => System.Array.IndexOf(Available, id) >= 0;
+
+        public static string Resolve(string id)
+        {
+            if (string.IsNullOrEmpty(id) || IsAvailable(id)) return id;
+            switch (id)
+            {
+                case "spear": case "obsidian_spear": case "obsidian_knife": case "bone_dagger": return "knife";
+                case "stick": case "club": case "torch": case "obsidian_axe": return "axe";
+                default: return "bow";   // stone, slingshot, compound_bow, crossbow, firearms
+            }
+        }
+
         public static readonly string[] ShopTabs = ModernWeapons
             ? new[] { "КРЕСЛЕННЯ", "ІНСТРУМЕНТИ", "ЗБРОЯ", "СПОРЯДЖЕННЯ", "РІЗНЕ", "ПРОДАЖ" }
             : new[] { "ЗБРОЯ", "ПОКРАЩЕННЯ", "ІНСТРУМЕНТИ", "СПОРЯДЖЕННЯ", "ПРОДАЖ" };
@@ -179,6 +197,7 @@ namespace Neanderthal
             Shop.Add(new ShopEntry { Id = "s_bone_dagger", Name = "Кістяний кинджал", Tab = "ПОКРАЩЕННЯ", Kind = ShopKind.Weapon, WeaponId = "bone_dagger", Price = 110 });
             Shop.Add(new ShopEntry { Id = "s_club", Name = "Кийок", Tab = "ІНСТРУМЕНТИ", Kind = ShopKind.Weapon, WeaponId = "club", Price = 50 });
             BuildCommonShop();
+            Shop.RemoveAll(e => e.Kind == ShopKind.Weapon && !IsAvailable(e.WeaponId) || e.Kind == ShopKind.Ammo && e.Ammo != AmmoType.Arrow);
         }
 
         static void BuildModern()
