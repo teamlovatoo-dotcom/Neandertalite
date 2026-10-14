@@ -42,7 +42,7 @@ namespace Neanderthal
         public int CoinReward = 10;
         [System.NonSerialized] public List<(Resource, int)> Loot = new List<(Resource, int)>();
         public string RangedWeapon = "bow";
-        public string MeleeWeapon = "spear";
+        public string MeleeWeapon = "knife";
         public bool Respawns;            // duel bot: handled externally
 
         public Health Target;
@@ -656,12 +656,20 @@ namespace Neanderthal
             return false;
         }
 
+        float nextHopAnim;
+
         void Translate(Vector3 delta)
         {
             Vector3 next = transform.position + delta;
             if (PhysicsUtil.RaycastStatic(next + Vector3.up * 1.5f, Vector3.down, 6f, out var hit) && hit.normal.y > 0.45f)
             {
-                if (hit.point.y - transform.position.y > 0.9f) return; // too steep to climb
+                float rise = hit.point.y - transform.position.y;
+                if (rise > 0.9f) return; // too steep to climb
+                if (rise > 0.4f && Time.time > nextHopAnim)    // hopping up onto a ledge
+                {
+                    Anim?.PlayOnce(AnimLibrary.Jump, 1.6f);
+                    nextHopAnim = Time.time + 1.2f;
+                }
                 next.y = hit.point.y;
                 verticalVel = 0f;
             }

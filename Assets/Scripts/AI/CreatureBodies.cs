@@ -97,6 +97,7 @@ namespace Neanderthal
     {
         public static CreatureBody Neanderthal(Transform parent, string weaponId, Color? teamColor, int seed)
         {
+            weaponId = ItemDatabase.Resolve(weaponId);
             if (ModelLibrary.Neanderthal != null)
             {
                 var skinned = NeanderthalModel(parent, weaponId, teamColor, seed);
@@ -267,8 +268,17 @@ namespace Neanderthal
 
             // Materials: skin tone varies per hunter.
             var skinTone = Color.Lerp(new Color(0.42f, 0.26f, 0.17f), new Color(0.3f, 0.18f, 0.11f), (float)rnd.NextDouble());
-            var skin = Mat.Textured("np_skin_" + ColorUtility.ToHtmlStringRGB(skinTone),
-                Mat.NoiseTexture(128, skinTone * 1.08f, skinTone * 0.82f, 9f, 21), 0.35f);
+            // The imported model (Tools/blender/import_character.py) ships a baked albedo + normal map;
+            // hunters differ by a slight tint. Older procedural models fall back to a noise texture.
+            Material skin;
+            if (TextureLibrary.Has("neanderthal"))
+            {
+                float shade = 0.82f + 0.09f * rnd.Next(3);
+                skin = Mat.Pbr("neanderthal", skinTone, 0.25f, null, new Color(shade, shade * 0.97f, shade * 0.95f));
+            }
+            else
+                skin = Mat.Textured("np_skin_" + ColorUtility.ToHtmlStringRGB(skinTone),
+                    Mat.NoiseTexture(128, skinTone * 1.08f, skinTone * 0.82f, 9f, 21), 0.35f);
             var fur = Mat.Textured("np_fur", Mat.NoiseTexture(128, new Color(0.36f, 0.25f, 0.15f), new Color(0.16f, 0.1f, 0.06f), 26f, 4), 0.05f, new Vector2(3, 3));
             var hair = Mat.Textured("np_hair", Mat.NoiseTexture(128, new Color(0.11f, 0.075f, 0.05f), new Color(0.03f, 0.02f, 0.015f), 40f, 8), 0.25f, new Vector2(2, 6));
             var rope = Mat.Get(new Color(0.45f, 0.35f, 0.22f), 0.1f);

@@ -80,7 +80,7 @@ namespace Neanderthal
                     break;
                 case CreatureType.Duelist:
                 {
-                    bool sling = Random.value < 0.35f;
+                    bool sling = ItemDatabase.IsAvailable("slingshot") && Random.value < 0.35f;
                     c.RangedWeapon = sling ? "slingshot" : "bow";
                     c.Body = CreatureBodies.Neanderthal(go.transform, c.RangedWeapon, team ?? Mat.TeamRed, seed);
                     Setup(c, Team.Enemy, 100f, walk: 2.2f, run: 5.6f, dmg: sling ? 17f : 22f, range: 2.4f, cd: sling ? 1.1f : 1.5f, windup: 0.4f);

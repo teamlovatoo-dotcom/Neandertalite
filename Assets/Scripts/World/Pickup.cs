@@ -39,10 +39,10 @@ namespace Neanderthal
         }
 
         public static Pickup Weapon(Transform parent, Vector3 pos, string id, float respawn = 0f)
-            => Create(parent, pos, PickupKind.Weapon, weaponId: id, respawn: respawn);
+            => Create(parent, pos, PickupKind.Weapon, weaponId: ItemDatabase.Resolve(id), respawn: respawn);
 
         public static Pickup AmmoBox(Transform parent, Vector3 pos, AmmoType type, int amount, float respawn = 0f)
-            => Create(parent, pos, PickupKind.Ammo, ammo: type, amount: amount, respawn: respawn);
+            => Create(parent, pos, PickupKind.Ammo, ammo: AmmoType.Arrow, amount: amount, respawn: respawn);   // arrows are the only ammo now
 
         public static Pickup Res(Transform parent, Vector3 pos, Resource r, int amount)
             => Create(parent, pos, PickupKind.Resource, res: r, amount: amount);
@@ -85,7 +85,7 @@ namespace Neanderthal
             if (Animate && visual != null)
             {
                 visual.localPosition = basePos + Vector3.up * (0.12f + Mathf.Sin(Time.time * 2.2f + transform.position.x) * 0.06f);
-                visual.Rotate(0f, 70f * Time.deltaTime, 0f, Space.World);
+                visual.Rotate(0f, (Kind == PickupKind.Health ? 35f : 70f) * Time.deltaTime, 0f, Space.World);
             }
 
             var player = PlayerController.Instance;
@@ -201,6 +201,7 @@ namespace Neanderthal
                             new Vector3(0.09f, 0.008f, 0.09f), Mat.Get(new Color(0.95f, 0.75f, 0.25f), 0.7f, 0.9f), Quaternion.Euler(20f * i, 0, 15f), false);
                     break;
                 case PickupKind.Health:
+                    if (ModelKit.Spawn("Models/Props/medkit", root, out _) != null) break;   // the author's 30 cm medkit
                     BuildResource(root, Resource.Herbs);
                     Shapes.Box(root, new Vector3(0, 0.55f, 0), new Vector3(0.28f, 0.08f, 0.08f), Mat.Emissive(new Color(0.4f, 1f, 0.4f), 1.5f), null, false);
                     Shapes.Box(root, new Vector3(0, 0.55f, 0), new Vector3(0.08f, 0.28f, 0.08f), Mat.Emissive(new Color(0.4f, 1f, 0.4f), 1.5f), null, false);

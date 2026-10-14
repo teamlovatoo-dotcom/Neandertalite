@@ -13,6 +13,8 @@ namespace Neanderthal
     public static class AnimLibrary
     {
         public static AnimationClip Idle, Walk, Run, Sprint;
+        // Environment (Mixamo Env_*, Crouch_*, Swim*): loaded for bodies that jump, crouch, swim, climb, pick up or heal.
+        public static AnimationClip Jump, Roll, Climb, Swim, SwimIdle, CrouchIdle, CrouchWalk, PickUp, Heal;
         public static readonly List<AnimationClip> Attacks = new List<AnimationClip>();
         public static readonly List<AnimationClip> Stabs = new List<AnimationClip>();
         public static readonly List<AnimationClip> Hits = new List<AnimationClip>();
@@ -47,11 +49,21 @@ namespace Neanderthal
             Walk = Pick(human, new[] { "walk" }, NotForward);
             Run = Pick(human, new[] { "jog" }, NotForward) ?? Pick(human, new[] { "run" }, NotForward);
             Sprint = Pick(human, new[] { "sprint" }, NotForward);
+            Jump = Pick(human, new[] { "jump" }, new string[0]);
+            Roll = Pick(human, new[] { "roll" }, new string[0]);
+            Climb = Pick(human, new[] { "climb" }, new string[0]);
+            Swim = Pick(human, new[] { "swim" }, new[] { "tread" });
+            SwimIdle = Pick(human, new[] { "tread" }, new string[0]);
+            CrouchIdle = Pick(human, new[] { "crouch", "idle" }, new string[0]);
+            CrouchWalk = Pick(human, new[] { "crouch", "walk" }, new string[0]);
+            PickUp = Pick(human, new[] { "pickup" }, new string[0]);
+            Heal = Pick(human, new[] { "heal" }, new string[0]);
             foreach (var c in human)
             {
                 string n = c.name.ToLowerInvariant();
                 bool recovery = n.Contains("_rec") || n.Contains("recover");
-                bool locomotion = n.Contains("idle") || n.Contains("walk") || n.Contains("run") || n.Contains("jog") || n.Contains("sprint");
+                bool locomotion = n.Contains("idle") || n.Contains("walk") || n.Contains("run") || n.Contains("jog") || n.Contains("sprint")
+                                  || n.StartsWith("env_") || n.Contains("swim") || n.Contains("crouch");
                 if (n.Contains("death") || n.Contains("dying") || n.Contains("_die")) Deaths.Add(c);
                 else if (n.Contains("hit") && !n.Contains("hitch")) (n.Contains("head") ? HeadHits : Hits).Add(c);
                 else if (locomotion || recovery) continue;
@@ -61,11 +73,19 @@ namespace Neanderthal
                 else if (n.Contains("bow") || n.Contains("shoot") || n.Contains("archer")) Shoots.Add(c);
             }
             Summary = $"Humanoid-кліпів {human.Count}: стоїть {Name(Idle)}, іде {Name(Walk)}, біжить {Name(Run)}, спринт {Name(Sprint)}, " +
-                      $"удари {Attacks.Count}, уколи {Stabs.Count}, влучання {Hits.Count + HeadHits.Count}, смерть {Deaths.Count}, лук {Shoots.Count}";
+                      $"удари {Attacks.Count}, уколи {Stabs.Count}, влучання {Hits.Count + HeadHits.Count}, смерть {Deaths.Count}, лук {Shoots.Count}, " +
+                      $"середовище {CountEnv()}/9";
             Debug.Log("[Анімації] " + Summary);
         }
 
         static string Name(AnimationClip c) => c != null ? c.name : "—";
+
+        static int CountEnv()
+        {
+            int n = 0;
+            foreach (var c in new[] { Jump, Roll, Climb, Swim, SwimIdle, CrouchIdle, CrouchWalk, PickUp, Heal }) if (c != null) n++;
+            return n;
+        }
 
         /// <summary>Best match: has every keyword, none of the excluded words, shortest name ("Idle_Loop" over "Idle_Talking").</summary>
         static AnimationClip Pick(List<AnimationClip> clips, string[] need, string[] exclude)
@@ -236,6 +256,12 @@ namespace Neanderthal
             hasAction = true;
             actionHold = hold;
             actionEnd = Time.time + clip.length / Mathf.Max(0.05f, speed);
+        }
+
+        /// <summary>One-shot environment action (jump, roll, pick up, heal...) in the action slot.</summary>
+        public void PlayOnce(AnimationClip clip, float speed = 1f)
+        {
+            if (!dying) PlayAction(clip, speed);
         }
 
         /// <summary>Attack timed so the clip's swing (~45% in) lands when the creature deals its damage.</summary>

@@ -235,8 +235,9 @@ def stone(b):
     markers()
 
 
-MODELS = {"knife": knife, "bone_dagger": bone_dagger, "stick": stick, "club": club, "axe": axe, "torch": torch,
-          "spear": spear, "bow": bow, "slingshot": slingshot, "arrow": arrow, "stone": stone}
+# knife, axe, bow and arrow are the author's own models now (import_weapon.py): never overwrite them here.
+MODELS = {"bone_dagger": bone_dagger, "stick": stick, "club": club, "torch": torch,
+          "spear": spear, "slingshot": slingshot, "stone": stone}
 
 os.makedirs(OUT, exist_ok=True)
 for name, fn in MODELS.items():
